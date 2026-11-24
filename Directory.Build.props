@@ -1,0 +1,10 @@
+<Project>
+  <!-- 全解决方案统一设置。JwwHelper 是 C++/CLI，只能 Windows x64 运行，所以统一 x64 -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PlatformTarget>x64</PlatformTarget>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>

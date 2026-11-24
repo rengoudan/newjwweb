@@ -1,0 +1,24 @@
+﻿@page "/error"
+@layout AccountLayout
+@attribute [AllowAnonymous]
+@attribute [ExcludeFromInteractiveRouting]
+@using System.Diagnostics
+
+<PageTitle>@L["エラー"]</PageTitle>
+
+<h1 class="jw-account-title">@L["エラーが発生しました"]</h1>
+<p class="jw-muted">@L["処理中にエラーが発生しました。管理者に連絡する場合は、次の番号を伝えてください。"]</p>
+@if (!string.IsNullOrEmpty(RequestId))
+{
+    <p><code>@RequestId</code></p>
+}
+<a href="/" class="jw-btn-primary">@L["ワークベンチへ戻る"]</a>
+
+@code {
+    [CascadingParameter] private HttpContext? HttpContext { get; set; }
+
+    private string? RequestId { get; set; }
+
+    protected override void OnInitialized() =>
+        RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+}

@@ -1,0 +1,124 @@
+@page "/admin/audit"
+@attribute [Authorize(Policy = Permissions.Admin.Audit)]
+@using Jw.Application.Auditing
+@using Jw.Domain.Auditing
+@inject AuditQueryService Service
+@inject UiRunner Ui
+
+<PageTitle>@L["操作ログ"]</PageTitle>
+
+<PageHeader Title="@L["操作ログ"]" Description="@L["データの追加・変更・削除、ログイン、ユーザー管理などの操作履歴です。記録は変更・削除できません。"]" />
+
+<MudPaper Class="jw-card" Elevation="0">
+    <div class="jw-toolbar jw-toolbar-wrap">
+        <MudDateRangePicker @bind-DateRange="_range" Label="@L["期間"]" Variant="Variant.Outlined" Margin="Margin.Dense"
+                            Clearable="true" DateFormat="yyyy/MM/dd" Class="jw-filter-date" />
+        <MudSelect T="AuditCategory?" @bind-Value="_category" Label="@L["種類"]" Variant="Variant.Outlined" Margin="Margin.Dense"
+                   Clearable="true" Class="jw-filter-sm">
+            <MudSelectItem T="AuditCategory?" Value="AuditCategory.Data">@CategoryName(AuditCategory.Data)</MudSelectItem>
+            <MudSelectItem T="AuditCategory?" Value="AuditCategory.Action">@CategoryName(AuditCategory.Action)</MudSelectItem>
+            <MudSelectItem T="AuditCategory?" Value="AuditCategory.Security">@CategoryName(AuditCategory.Security)</MudSelectItem>
+        </MudSelect>
+        <MudTextField @bind-Value="_userName" Label="@L["操作者"]" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Class="jw-filter-sm" />
+        <MudTextField @bind-Value="_keyword" Label="@L["キーワード"]" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Class="jw-filter-md" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Search" OnClick="SearchAsync">@L["検索"]</MudButton>
+    </div>
+
+    <MudTable @ref="_table" T="AuditLogItem" ServerData="LoadAsync" Hover="true" Dense="true" Elevation="0" Class="jw-table jw-audit-table" HorizontalScrollbar="true"
+              RowsPerPage="50" OnRowClick="(TableRowClickEventArgs<AuditLogItem> e) => Toggle(e.Item!)" RowClass="jw-clickable">
+        <HeaderContent>
+            <MudTh Style="width:170px">@L["日時"]</MudTh>
+            <MudTh Style="width:90px">@L["種類"]</MudTh>
+            <MudTh Style="width:140px">@L["操作"]</MudTh>
+            <MudTh>@L["内容"]</MudTh>
+            <MudTh Style="width:140px">@L["操作者"]</MudTh>
+            <MudTh Style="width:130px">@L["IPアドレス"]</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@TimeDisplay.FormatSeconds(context.Time)</MudTd>
+            <MudTd><MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="CategoryColor(context.Category)">@CategoryName(context.Category)</MudChip></MudTd>
+            <MudTd>
+                <span class="@(context.Action == AuditActions.LoginFailed ? "jw-text-error" : null)">@AuditActions.DisplayName(context.Action)</span>
+            </MudTd>
+            <MudTd>
+                @context.Summary
+                @if (!string.IsNullOrEmpty(context.Detail))
+                {
+                    <MudIcon Icon="@(_expanded.Contains(context.Id) ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                             Size="Size.Small" Class="jw-inline-icon" />
+                }
+            </MudTd>
+            <MudTd>@context.UserName</MudTd>
+            <MudTd class="jw-sub">@context.IpAddress</MudTd>
+        </RowTemplate>
+        <ChildRowContent>
+            @if (_expanded.Contains(context.Id) && !string.IsNullOrEmpty(context.Detail))
+            {
+                <MudTr>
+                    <td colspan="6" class="jw-detail-cell">
+                        <ChangeTable Item="context" />
+                        <div class="jw-sub mt-1">@L["対象"]: @context.EntityType @context.EntityId ・ @L["相関ID"]: @context.CorrelationId</div>
+                    </td>
+                </MudTr>
+            }
+        </ChildRowContent>
+        <NoRecordsContent>
+            <div class="jw-empty-inline">@L["該当する記録がありません。"]</div>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new[] { 50, 100, 200 }" RowsPerPageString="@L["表示件数"]" />
+        </PagerContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private MudTable<AuditLogItem>? _table;
+    private DateRange? _range;
+    private AuditCategory? _category;
+    private string? _userName;
+    private string? _keyword;
+    private readonly HashSet<long> _expanded = [];
+
+    private async Task<TableData<AuditLogItem>> LoadAsync(TableState state, CancellationToken ct)
+    {
+        var q = new AuditQuery
+        {
+            Category = _category,
+            UserName = _userName,
+            Keyword = _keyword,
+            FromUtc = _range?.Start is { } s ? TimeDisplay.ToUtc(s.Date) : null,
+            ToUtc = _range?.End is { } e ? TimeDisplay.ToUtc(e.Date.AddDays(1)) : null,
+            Page = state.Page,
+            PageSize = state.PageSize,
+        };
+        Jw.Application.Common.PagedResult<AuditLogItem>? result = null;
+        await Ui.RunAsync(async () => result = await Service.SearchAsync(q, ct));
+        return new TableData<AuditLogItem> { Items = result?.Items ?? [], TotalItems = result?.TotalCount ?? 0 };
+    }
+
+    private Task SearchAsync()
+    {
+        _expanded.Clear();
+        return _table?.ReloadServerData() ?? Task.CompletedTask;
+    }
+
+    private void Toggle(AuditLogItem item)
+    {
+        if (!_expanded.Remove(item.Id)) _expanded.Add(item.Id);
+    }
+
+    private string CategoryName(AuditCategory c) => c switch
+    {
+        AuditCategory.Data => L["データ"],
+        AuditCategory.Action => L["業務操作"],
+        AuditCategory.Security => L["セキュリティ"],
+        _ => c.ToString(),
+    };
+
+    private static Color CategoryColor(AuditCategory c) => c switch
+    {
+        AuditCategory.Data => Color.Primary,
+        AuditCategory.Action => Color.Tertiary,
+        _ => Color.Warning,
+    };
+}

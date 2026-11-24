@@ -1,0 +1,512 @@
+:root {
+    --jw-primary: #1d6fd8;
+    --jw-primary-dark: #1557ab;
+    --jw-primary-soft: #e8f1fc;
+    --jw-text: #1f2937;
+    --jw-muted: #6b7280;
+    --jw-line: #e5e7eb;
+    --jw-bg: #f5f7fa;
+    --jw-error: #d93b3b;
+    --jw-success: #1a9d5a;
+    --jw-font: "Meiryo UI", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", "Segoe UI", sans-serif;
+}
+
+html, body {
+    margin: 0;
+    font-family: var(--jw-font);
+    color: var(--jw-text);
+    background: var(--jw-bg);
+}
+
+/* ---------- 顶栏、侧栏 ---------- */
+.jw-appbar {
+    border-bottom: 1px solid var(--jw-line);
+}
+
+.jw-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: 8px;
+    color: inherit;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.jw-brand-mark {
+    display: inline-grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: var(--jw-primary);
+    color: #fff;
+    font-size: .8rem;
+    font-weight: 700;
+    letter-spacing: .5px;
+}
+
+.jw-user-button {
+    font-weight: 500;
+}
+
+.jw-logout-form {
+    margin: 0;
+}
+
+.jw-logout-button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 6px 16px;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+}
+
+    .jw-logout-button:hover {
+        background: rgba(0, 0, 0, .04);
+    }
+
+.jw-drawer {
+    border-right: 1px solid var(--jw-line) !important;
+}
+
+.jw-nav {
+    padding: 12px 8px;
+}
+
+.jw-nav-section {
+    margin: 18px 12px 6px;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    color: var(--jw-muted);
+}
+
+.jw-soon {
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: #f0f1f3;
+    color: var(--jw-muted);
+    font-size: .68rem;
+}
+
+.jw-main {
+    min-height: 100vh;
+}
+
+/* ---------- 页面通用 ---------- */
+.jw-page-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.jw-page-title {
+    margin-bottom: 2px;
+}
+
+.jw-page-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.jw-card {
+    border: 1px solid var(--jw-line);
+    border-radius: 10px !important;
+}
+
+.jw-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--jw-line);
+}
+
+.jw-toolbar-wrap {
+    flex-wrap: wrap;
+}
+
+.jw-search {
+    max-width: 360px;
+}
+
+.jw-filter-date { max-width: 280px; }
+.jw-filter-sm { max-width: 170px; }
+.jw-filter-md { max-width: 240px; }
+
+.jw-table .mud-table-head th {
+    background: #fafbfc;
+    color: var(--jw-muted);
+    font-weight: 700;
+    font-size: .78rem;
+    white-space: nowrap;
+}
+
+.jw-row-actions {
+    white-space: nowrap;
+    text-align: right;
+}
+
+.jw-sub {
+    color: var(--jw-muted);
+    font-size: .78rem;
+}
+
+.jw-clickable {
+    cursor: pointer;
+}
+
+.jw-inline-icon {
+    vertical-align: middle;
+    margin-left: 4px;
+}
+
+.jw-text-error {
+    color: var(--jw-error);
+    font-weight: 700;
+}
+
+.jw-empty, .jw-empty-inline {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: var(--jw-muted);
+}
+
+.jw-empty {
+    padding: 80px 16px;
+}
+
+.jw-empty-inline {
+    padding: 28px 16px;
+}
+
+/* ---------- 工作台 ---------- */
+.jw-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 12px;
+}
+
+.jw-step {
+    display: flex;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--jw-line);
+    border-radius: 10px;
+    background: #fbfcfd;
+}
+
+.jw-step-no {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--jw-primary-soft);
+    color: var(--jw-primary);
+    font-weight: 700;
+}
+
+.jw-step-title {
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+
+.jw-step-text {
+    color: var(--jw-muted);
+    font-size: .8rem;
+}
+
+/* ---------- 审计明细 ---------- */
+.jw-change-table {
+    width: 100%;
+    max-width: 900px;
+    border-collapse: collapse;
+    font-size: .8rem;
+    margin-top: 4px;
+}
+
+    .jw-change-table th, .jw-change-table td {
+        padding: 5px 10px;
+        border: 1px solid var(--jw-line);
+        text-align: left;
+        vertical-align: top;
+        word-break: break-all;
+    }
+
+    .jw-change-table th {
+        background: #fafbfc;
+        color: var(--jw-muted);
+        width: 33%;
+    }
+
+.jw-old {
+    color: #9b2c2c;
+    background: #fdf2f2;
+}
+
+.jw-new {
+    color: #1c6b3f;
+    background: #f0faf4;
+}
+
+.jw-detail-json {
+    margin: 4px 0 0;
+    padding: 8px 10px;
+    background: #f7f8fa;
+    border-radius: 6px;
+    font-size: .75rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.jw-detail-cell {
+    padding: 10px 16px 14px 32px !important;
+    background: #fbfcfd;
+}
+
+.jw-history .mud-timeline-item-content {
+    padding-bottom: 14px;
+}
+
+.jw-history-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    align-items: baseline;
+}
+
+/* ---------- 角色与权限 ---------- */
+.jw-role-card {
+    height: 100%;
+}
+
+.jw-role-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.jw-perm-summary {
+    border-top: 1px solid var(--jw-line);
+    padding-top: 8px;
+}
+
+.jw-perm-row {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    gap: 8px;
+    padding: 3px 0;
+    font-size: .8rem;
+}
+
+.jw-perm-group {
+    color: var(--jw-muted);
+}
+
+.jw-perm-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 10px;
+}
+
+.jw-perm-block {
+    border: 1px solid var(--jw-line);
+    border-radius: 8px;
+    padding: 6px 8px 8px;
+}
+
+.jw-perm-group-check .mud-typography {
+    font-weight: 700;
+}
+
+.jw-perm-items {
+    padding-left: 22px;
+}
+
+.jw-temp-password {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border: 1px dashed var(--jw-primary);
+    border-radius: 8px;
+    background: var(--jw-primary-soft);
+}
+
+    .jw-temp-password code {
+        font-size: 1.2rem;
+        letter-spacing: .08em;
+        user-select: all;
+    }
+
+/* ---------- 账户页面（纯服务端渲染，不依赖 MudBlazor） ---------- */
+.jw-account-page {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: linear-gradient(160deg, #eef4fc 0%, #f5f7fa 55%);
+}
+
+.jw-account-card {
+    width: 100%;
+    max-width: 400px;
+    padding: 32px 32px 28px;
+    background: #fff;
+    border: 1px solid var(--jw-line);
+    border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(29, 111, 216, .08);
+}
+
+.jw-account-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    margin-bottom: 22px;
+}
+
+.jw-account-title {
+    margin: 0 0 18px;
+    font-size: 1.3rem;
+}
+
+.jw-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.jw-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: .85rem;
+    font-weight: 500;
+}
+
+    .jw-field input {
+        height: 40px;
+        padding: 0 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font: inherit;
+        font-weight: 400;
+        font-size: .95rem;
+        outline: none;
+        transition: border-color .15s, box-shadow .15s;
+    }
+
+        .jw-field input:focus {
+            border-color: var(--jw-primary);
+            box-shadow: 0 0 0 3px rgba(29, 111, 216, .15);
+        }
+
+    .jw-field small {
+        color: var(--jw-muted);
+        font-weight: 400;
+    }
+
+.jw-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .85rem;
+}
+
+.jw-btn-primary {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    height: 42px;
+    padding: 0 18px;
+    margin-top: 4px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--jw-primary);
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+    .jw-btn-primary:hover {
+        background: var(--jw-primary-dark);
+    }
+
+.jw-link-center {
+    text-align: center;
+    color: var(--jw-muted);
+    font-size: .85rem;
+}
+
+.jw-muted {
+    color: var(--jw-muted);
+}
+
+.jw-alert {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: .85rem;
+    margin-bottom: 14px;
+}
+
+.jw-alert-error {
+    background: #fdf2f2;
+    color: #9b2c2c;
+    border: 1px solid #f5c6c6;
+}
+
+.jw-alert-info {
+    background: var(--jw-primary-soft);
+    color: var(--jw-primary-dark);
+    border: 1px solid #c7dcf6;
+}
+
+.validation-message {
+    color: var(--jw-error);
+    font-size: .78rem;
+    font-weight: 400;
+}
+
+/* ---------- Blazor 错误提示条 ---------- */
+#blazor-error-ui {
+    background: #fff7e6;
+    border-top: 1px solid #f3d19e;
+    bottom: 0;
+    box-sizing: border-box;
+    display: none;
+    left: 0;
+    padding: .6rem 1.25rem .7rem;
+    position: fixed;
+    width: 100%;
+    z-index: 2000;
+}
+
+    #blazor-error-ui .dismiss {
+        cursor: pointer;
+        position: absolute;
+        right: .75rem;
+        top: .5rem;
+    }
+
+.jw-audit-table table {
+    min-width: 960px;
+}

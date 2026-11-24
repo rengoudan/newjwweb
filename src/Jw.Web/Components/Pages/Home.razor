@@ -1,0 +1,56 @@
+﻿@page "/"
+@attribute [Authorize(Policy = Permissions.Workbench.View)]
+@inject ICurrentUser CurrentUser
+
+<PageTitle>@L["ワークベンチ"]</PageTitle>
+
+<PageHeader Title="@L["ワークベンチ"]" Description="@($"{CurrentUser.DisplayName} {L["さん、お疲れさまです。"]}")" />
+
+<MudGrid Spacing="3">
+    <MudItem xs="12" md="8">
+        <MudPaper Class="jw-card pa-5" Elevation="0">
+            <MudText Typo="Typo.h6" Class="mb-3">@L["作業の流れ"]</MudText>
+            <div class="jw-steps">
+                @foreach (var (n, title, text) in Steps)
+                {
+                    <div class="jw-step">
+                        <span class="jw-step-no">@n</span>
+                        <div>
+                            <div class="jw-step-title">@L[title]</div>
+                            <div class="jw-step-text">@L[text]</div>
+                        </div>
+                    </div>
+                }
+            </div>
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mt-4">
+                @L["工事一覧・図面取込・出力は順次公開します。現在は顧客管理とシステム管理が利用できます。"]
+            </MudAlert>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" md="4">
+        <MudPaper Class="jw-card pa-5" Elevation="0">
+            <MudText Typo="Typo.h6" Class="mb-3">@L["ショートカット"]</MudText>
+            <MudStack Spacing="2">
+                <AuthorizeView Policy="@Permissions.Customers.View" Context="_">
+                    <MudButton Href="/customers" Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Business" FullWidth="true">@L["顧客"]</MudButton>
+                </AuthorizeView>
+                <AuthorizeView Policy="@Permissions.Admin.Users" Context="_">
+                    <MudButton Href="/admin/users" Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.People" FullWidth="true">@L["ユーザー"]</MudButton>
+                </AuthorizeView>
+                <AuthorizeView Policy="@Permissions.Admin.Audit" Context="_">
+                    <MudButton Href="/admin/audit" Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.History" FullWidth="true">@L["操作ログ"]</MudButton>
+                </AuthorizeView>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private static readonly (int, string, string)[] Steps =
+    [
+        (1, "顧客の確認", "顧客ごとの解析設定を確認します。"),
+        (2, "工事の登録", "工事と階数を登録します。"),
+        (3, "図面の取込", "階ごとに .jww を取り込み、梁・柱を解析します。"),
+        (4, "確認と出力", "要確認の梁を直し、JW 図面と梁製造 CSV を出力します。"),
+    ];
+}

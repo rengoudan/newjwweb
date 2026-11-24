@@ -1,0 +1,153 @@
+@page "/admin/users"
+@attribute [Authorize(Policy = Permissions.Admin.Users)]
+@using Jw.Application.Users
+@inject UserAdminService Service
+@inject IDialogService Dialogs
+@inject UiRunner Ui
+@inject ICurrentUser CurrentUser
+
+<PageTitle>@L["ユーザー"]</PageTitle>
+
+<PageHeader Title="@L["ユーザー"]" Description="@L["ログインできるユーザーとロールを管理します。ユーザーは削除せず、無効にします。"]">
+    <Actions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="() => EditAsync(null)">@L["ユーザーを追加"]</MudButton>
+    </Actions>
+</PageHeader>
+
+<MudPaper Class="jw-card" Elevation="0">
+    <div class="jw-toolbar">
+        <MudTextField @bind-Value="_keyword" Placeholder="@L["ユーザーID・氏名・メールで検索"]" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="300"
+                      OnDebounceIntervalElapsed="LoadAsync" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"
+                      OnClearButtonClick="LoadAsync" Class="jw-search" />
+        <MudSwitch T="bool" @bind-Value="_showInactive" Color="Color.Primary" Label="@L["無効なユーザーも表示"]" Class="ml-4" />
+        <MudSpacer />
+        <MudText Typo="Typo.body2" Color="Color.Secondary">@L["件数"]: @Visible.Count()</MudText>
+    </div>
+    <MudTable Items="Visible" Hover="true" Dense="true" Loading="_loading" Elevation="0" Class="jw-table" RowsPerPage="50">
+        <HeaderContent>
+            <MudTh>@L["ユーザーID"]</MudTh>
+            <MudTh>@L["氏名"]</MudTh>
+            <MudTh>@L["ロール"]</MudTh>
+            <MudTh>@L["状態"]</MudTh>
+            <MudTh>@L["最終ログイン"]</MudTh>
+            <MudTh Style="width:1%"></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>
+                <b>@context.UserName</b>
+                @if (context.Id == CurrentUser.Id)
+                {
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Primary">@L["自分"]</MudChip>
+                }
+            </MudTd>
+            <MudTd>
+                <div>@context.DisplayName</div>
+                <div class="jw-sub">@context.Email</div>
+            </MudTd>
+            <MudTd>
+                @foreach (var r in context.Roles)
+                {
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(r == "Admin" ? Color.Primary : Color.Default)">@RoleName(r)</MudChip>
+                }
+            </MudTd>
+            <MudTd>
+                @if (!context.IsActive)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default">@L["無効"]</MudChip>
+                }
+                else if (context.IsLockedOut)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Warning">@L["ロック中"]</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Text">@L["有効"]</MudChip>
+                }
+                @if (context.MustChangePassword)
+                {
+                    <MudTooltip Text="@L["次回ログイン時にパスワード変更が必要"]">
+                        <MudIcon Icon="@Icons.Material.Outlined.Key" Size="Size.Small" Color="Color.Warning" Class="jw-inline-icon" />
+                    </MudTooltip>
+                }
+            </MudTd>
+            <MudTd>@(context.LastLoginAt is null ? L["未ログイン"] : TimeDisplay.Format(context.LastLoginAt))</MudTd>
+            <MudTd Class="jw-row-actions">
+                <MudTooltip Text="@L["編集"]"><MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditAsync(context)" /></MudTooltip>
+                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                    <MudMenuItem Icon="@Icons.Material.Outlined.Password" OnClick="() => ResetPasswordAsync(context)">@L["パスワードをリセット"]</MudMenuItem>
+                    @if (context.IsLockedOut)
+                    {
+                        <MudMenuItem Icon="@Icons.Material.Outlined.LockOpen" OnClick="() => UnlockAsync(context)">@L["ロックを解除"]</MudMenuItem>
+                    }
+                </MudMenu>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <div class="jw-empty-inline">@L["該当するユーザーがいません。"]</div>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private IReadOnlyList<UserListItem> _items = [];
+    private IReadOnlyList<RoleOption> _roles = [];
+    private string? _keyword;
+    private bool _showInactive;
+    private bool _loading = true;
+
+    private IEnumerable<UserListItem> Visible => _showInactive ? _items : _items.Where(u => u.IsActive);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Ui.RunAsync(async () => _roles = await Service.RoleOptionsAsync());
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        await Ui.RunAsync(async () => _items = await Service.ListAsync(_keyword));
+        _loading = false;
+    }
+
+    private string RoleName(string name) => _roles.FirstOrDefault(r => r.Name == name)?.DisplayName ?? name;
+
+    private async Task EditAsync(UserListItem? user)
+    {
+        var parameters = new DialogParameters<UserDialog> { { x => x.User, user }, { x => x.Roles, _roles } };
+        var dialog = await Dialogs.ShowAsync<UserDialog>(user is null ? L["ユーザーを追加"] : L["ユーザーを編集"], parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            if (result.Data is string password) await ShowPasswordAsync(L["ユーザーを追加しました"], password);
+            await LoadAsync();
+        }
+    }
+
+    private async Task ResetPasswordAsync(UserListItem user)
+    {
+        var ok = await Dialogs.ShowMessageBoxAsync(L["パスワードのリセット"],
+            string.Format(L["「{0}」のパスワードをリセットし、仮パスワードを発行しますか？次回ログイン時に変更が必要になります。"], user.UserName),
+            yesText: L["リセットする"], cancelText: L["キャンセル"]);
+        if (ok != true) return;
+        string? password = null;
+        if (await Ui.RunAsync(async () => password = await Service.ResetPasswordAsync(user.Id)))
+        {
+            await ShowPasswordAsync(L["パスワードをリセットしました"], password!);
+            await LoadAsync();
+        }
+    }
+
+    private async Task UnlockAsync(UserListItem user)
+    {
+        if (await Ui.RunAsync(() => Service.UnlockAsync(user.Id), L["ロックを解除しました。"])) await LoadAsync();
+    }
+
+    private async Task ShowPasswordAsync(string title, string password)
+    {
+        var parameters = new DialogParameters<TempPasswordDialog> { { x => x.Password, password } };
+        var dialog = await Dialogs.ShowAsync<TempPasswordDialog>(title, parameters);
+        await dialog.Result;
+    }
+}

@@ -1,0 +1,74 @@
+@using Jw.Application.Users
+@inject UserAdminService Service
+@inject UiRunner Ui
+
+<MudDialog>
+    <DialogContent>
+        <EditForm id="user-form" Model="_model" OnValidSubmit="SaveAsync">
+            <DataAnnotationsValidator />
+            <MudStack Spacing="3">
+                <MudTextField @bind-Value="_model.UserName" For="() => _model.UserName" Label="@L["ユーザーID"]" Required="true"
+                              Disabled="IsEdit" HelperText="@(IsEdit ? L["ユーザーIDは変更できません。"] : L["ログインに使います。半角英数字。"])"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" AutoFocus="!IsEdit" />
+                <MudTextField @bind-Value="_model.DisplayName" For="() => _model.DisplayName" Label="@L["氏名"]" Required="true"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" AutoFocus="IsEdit" />
+                <MudTextField @bind-Value="_model.Email" For="() => _model.Email" Label="@L["メールアドレス"]" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <div>
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">@L["ロール"]</MudText>
+                    @foreach (var r in Roles)
+                    {
+                        <MudCheckBox T="bool" Value="_model.Roles.Contains(r.Name)" ValueChanged="v => ToggleRole(r.Name, v)"
+                                     Label="@r.DisplayName" Color="Color.Primary" Dense="true" />
+                    }
+                </div>
+                <MudSwitch T="bool" @bind-Value="_model.IsActive" Color="Color.Success" Label="@(_model.IsActive ? L["有効"] : L["無効（ログイン不可）"])" />
+                @if (!IsEdit)
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true">@L["保存すると仮パスワードを発行します。初回ログイン時にパスワード変更が必要です。"]</MudAlert>
+                }
+            </MudStack>
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => MudDialog.Cancel()">@L["キャンセル"]</MudButton>
+        <MudButton ButtonType="ButtonType.Submit" form="user-form" Variant="Variant.Filled" Color="Color.Primary" Disabled="_saving">@L["保存"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public UserListItem? User { get; set; }
+    [Parameter] public IReadOnlyList<RoleOption> Roles { get; set; } = [];
+
+    private UserInput _model = new();
+    private bool _saving;
+    private bool IsEdit => User is not null;
+
+    protected override void OnInitialized()
+    {
+        if (User is not null)
+            _model = new UserInput
+            {
+                Id = User.Id, UserName = User.UserName, DisplayName = User.DisplayName, Email = User.Email,
+                IsActive = User.IsActive, Roles = User.Roles.ToHashSet(),
+            };
+        else
+            _model.Roles.Add("Operator");
+    }
+
+    private void ToggleRole(string name, bool on)
+    {
+        if (on) _model.Roles.Add(name); else _model.Roles.Remove(name);
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        string? password = null;
+        var ok = IsEdit
+            ? await Ui.RunAsync(() => Service.UpdateAsync(_model), L["保存しました。"])
+            : await Ui.RunAsync(async () => password = await Service.CreateAsync(_model));
+        _saving = false;
+        if (ok) MudDialog.Close(DialogResult.Ok<object?>(password));
+    }
+}

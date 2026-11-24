@@ -1,0 +1,10 @@
+@page "/account/access-denied"
+@layout AccountLayout
+@attribute [AllowAnonymous]
+@attribute [ExcludeFromInteractiveRouting]
+
+<PageTitle>@L["アクセス権限がありません"]</PageTitle>
+
+<h1 class="jw-account-title">@L["アクセス権限がありません"]</h1>
+<p class="jw-muted">@L["このページを表示する権限がありません。必要な場合は管理者に依頼してください。"]</p>
+<a href="/" class="jw-btn-primary">@L["ワークベンチへ戻る"]</a>

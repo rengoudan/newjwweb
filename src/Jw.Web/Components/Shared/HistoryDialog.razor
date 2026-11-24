@@ -1,0 +1,55 @@
+@using Jw.Application.Auditing
+@inject AuditQueryService Audit
+@inject UiRunner Ui
+
+<MudDialog>
+    <DialogContent>
+        @if (_items is null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (_items.Count == 0)
+        {
+            <div class="jw-empty-inline">@L["履歴がありません。"]</div>
+        }
+        else
+        {
+            <MudTimeline TimelinePosition="TimelinePosition.Start" Class="jw-history">
+                @foreach (var item in _items)
+                {
+                    <MudTimelineItem Size="Size.Small" Color="@ActionColor(item.Action)">
+                        <div class="jw-history-head">
+                            <b>@item.Summary</b>
+                            <span class="jw-sub">@TimeDisplay.FormatSeconds(item.Time) ・ @item.UserName</span>
+                        </div>
+                        <ChangeTable Item="item" />
+                    </MudTimelineItem>
+                }
+            </MudTimeline>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => MudDialog.Close()">@L["閉じる"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public string EntityType { get; set; } = "";
+    [Parameter] public string EntityId { get; set; } = "";
+
+    private IReadOnlyList<AuditLogItem>? _items;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var ok = await Ui.RunAsync(async () => _items = await Audit.HistoryAsync(EntityType, EntityId));
+        if (!ok) _items = [];
+    }
+
+    internal static Color ActionColor(string action) => action switch
+    {
+        "Create" => Color.Success,
+        "Delete" => Color.Error,
+        _ => Color.Primary,
+    };
+}

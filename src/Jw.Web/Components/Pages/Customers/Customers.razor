@@ -1,0 +1,112 @@
+@page "/customers"
+@attribute [Authorize(Policy = Permissions.Customers.View)]
+@using Jw.Application.Customers
+@inject CustomerService Service
+@inject IDialogService Dialogs
+@inject UiRunner Ui
+@inject ICurrentUser CurrentUser
+
+<PageTitle>@L["顧客"]</PageTitle>
+
+<PageHeader Title="@L["顧客"]" Description="@L["工事の発注元となる顧客を管理します。"]">
+    <Actions>
+        @if (CurrentUser.HasPermission(Permissions.Customers.Edit))
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => EditAsync(null)">@L["顧客を追加"]</MudButton>
+        }
+    </Actions>
+</PageHeader>
+
+<MudPaper Class="jw-card" Elevation="0">
+    <div class="jw-toolbar">
+        <MudTextField @bind-Value="_keyword" Placeholder="@L["会社名・担当者・電話番号で検索"]" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="300"
+                      OnDebounceIntervalElapsed="LoadAsync" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"
+                      OnClearButtonClick="LoadAsync" Class="jw-search" />
+        <MudSpacer />
+        <MudText Typo="Typo.body2" Color="Color.Secondary">@L["件数"]: @_items.Count</MudText>
+    </div>
+    <MudTable Items="_items" Hover="true" Dense="true" Loading="_loading" Elevation="0" Class="jw-table"
+              RowsPerPage="50" HorizontalScrollbar="true">
+        <HeaderContent>
+            <MudTh><MudTableSortLabel SortBy="new Func<CustomerListItem, object>(x => x.CompanyName)">@L["会社名"]</MudTableSortLabel></MudTh>
+            <MudTh>@L["担当者"]</MudTh>
+            <MudTh>@L["電話番号"]</MudTh>
+            <MudTh>@L["住所"]</MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<CustomerListItem, object>(x => x.ModifiedAt ?? x.CreatedAt)">@L["最終更新"]</MudTableSortLabel></MudTh>
+            <MudTh Style="width:1%"></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd><b>@context.CompanyName</b></MudTd>
+            <MudTd>@context.Contact</MudTd>
+            <MudTd>@context.Telephone</MudTd>
+            <MudTd>@context.Address</MudTd>
+            <MudTd>
+                <div>@TimeDisplay.Format(context.ModifiedAt ?? context.CreatedAt)</div>
+                <div class="jw-sub">@(context.ModifiedByName ?? context.CreatedByName)</div>
+            </MudTd>
+            <MudTd Class="jw-row-actions">
+                @if (CurrentUser.HasPermission(Permissions.Customers.Edit))
+                {
+                    <MudTooltip Text="@L["編集"]"><MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditAsync(context.Id)" /></MudTooltip>
+                }
+                @if (CurrentUser.HasPermission(Permissions.Admin.Audit))
+                {
+                    <MudTooltip Text="@L["変更履歴"]"><MudIconButton Icon="@Icons.Material.Outlined.History" Size="Size.Small" OnClick="() => HistoryAsync(context)" /></MudTooltip>
+                }
+                @if (CurrentUser.HasPermission(Permissions.Customers.Delete))
+                {
+                    <MudTooltip Text="@L["削除"]"><MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteAsync(context)" /></MudTooltip>
+                }
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <div class="jw-empty-inline">@L["顧客が登録されていません。"]</div>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager HideRowsPerPage="true" />
+        </PagerContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private IReadOnlyList<CustomerListItem> _items = [];
+    private string? _keyword;
+    private bool _loading = true;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        await Ui.RunAsync(async () => _items = await Service.ListAsync(_keyword));
+        _loading = false;
+    }
+
+    private async Task EditAsync(Guid? id)
+    {
+        var parameters = new DialogParameters<CustomerDialog> { { x => x.CustomerId, id } };
+        var dialog = await Dialogs.ShowAsync<CustomerDialog>(id is null ? L["顧客を追加"] : L["顧客を編集"], parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false }) await LoadAsync();
+    }
+
+    private async Task DeleteAsync(CustomerListItem item)
+    {
+        var ok = await Dialogs.ShowMessageBoxAsync(L["削除の確認"],
+            string.Format(L["顧客「{0}」を削除しますか？"], item.CompanyName), yesText: L["削除する"], cancelText: L["キャンセル"]);
+        if (ok != true) return;
+        if (await Ui.RunAsync(() => Service.DeleteAsync(item.Id), L["削除しました。"])) await LoadAsync();
+    }
+
+    private Task HistoryAsync(CustomerListItem item)
+    {
+        var parameters = new DialogParameters<HistoryDialog>
+        {
+            { x => x.EntityType, "Customer" },
+            { x => x.EntityId, item.Id.ToString() },
+        };
+        return Dialogs.ShowAsync<HistoryDialog>(string.Format(L["変更履歴：{0}"], item.CompanyName), parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+    }
+}

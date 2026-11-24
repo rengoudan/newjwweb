@@ -1,0 +1,61 @@
+﻿@inherits LayoutComponentBase
+@inject ICurrentUser CurrentUser
+
+<MudThemeProvider Theme="JwTheme.Theme" />
+<MudPopoverProvider />
+<MudDialogProvider CloseButton="true" BackdropClick="false" MaxWidth="MaxWidth.Small" FullWidth="true" />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="0" Dense="true" Class="jw-appbar">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="() => _drawerOpen = !_drawerOpen" />
+        <a href="/" class="jw-brand">
+            <span class="jw-brand-mark">JW</span>
+            <span class="jw-brand-text">@L["設計自動化"]</span>
+        </a>
+        <MudSpacer />
+        <AuthorizeView Context="auth">
+            <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true">
+                @* MudBlazor 9：自定义触发按钮需要自己调用 menu.ToggleAsync *@
+                <ActivatorContent Context="menu">
+                    <MudButton Variant="Variant.Text" Color="Color.Inherit" StartIcon="@Icons.Material.Outlined.AccountCircle"
+                               EndIcon="@Icons.Material.Filled.ArrowDropDown" Class="jw-user-button"
+                               OnClick="@(e => menu.ToggleAsync(e))">
+                        @CurrentUser.DisplayName
+                    </MudButton>
+                </ActivatorContent>
+                <ChildContent>
+                    <MudMenuItem Icon="@Icons.Material.Outlined.Key" Href="/account/change-password" ForceLoad="true">@L["パスワード変更"]</MudMenuItem>
+                    <MudDivider />
+                    <form method="post" action="/account/logout" class="jw-logout-form">
+                        <AntiforgeryToken />
+                        <button type="submit" class="jw-logout-button">
+                            <MudIcon Icon="@Icons.Material.Outlined.Logout" Size="Size.Small" />
+                            <span>@L["ログアウト"]</span>
+                        </button>
+                    </form>
+                </ChildContent>
+            </MudMenu>
+        </AuthorizeView>
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="0" Variant="DrawerVariant.Responsive" Class="jw-drawer">
+        <NavMenu />
+    </MudDrawer>
+
+    <MudMainContent Class="jw-main">
+        <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="py-6 px-6">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+<div id="blazor-error-ui" data-nosnippet>
+    @L["エラーが発生しました。"]
+    <a href="." class="reload">@L["再読み込み"]</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private bool _drawerOpen = true;
+}

@@ -1,0 +1,13 @@
+@inherits LayoutComponentBase
+@attribute [AllowAnonymous]
+
+@* 登录、改密码用的纯服务端渲染布局：不依赖交互组件 *@
+<div class="jw-account-page">
+    <div class="jw-account-card">
+        <div class="jw-account-brand">
+            <span class="jw-brand-mark">JW</span>
+            <span>@L["設計自動化"]</span>
+        </div>
+        @Body
+    </div>
+</div>

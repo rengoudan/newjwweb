@@ -1,0 +1,96 @@
+@using Jw.Application.Users
+@inject RoleAdminService Service
+@inject UiRunner Ui
+
+<MudDialog>
+    <DialogContent>
+        <EditForm id="role-form" Model="_model" OnValidSubmit="SaveAsync">
+            <DataAnnotationsValidator />
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="5">
+                    <MudTextField @bind-Value="_model.Name" For="() => _model.Name" Label="@L["ロールID"]" Required="true" Disabled="IsEdit"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="7">
+                    <MudTextField @bind-Value="_model.DisplayName" For="() => _model.DisplayName" Label="@L["表示名"]" Required="true"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_model.Description" For="() => _model.Description" Label="@L["説明"]" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+
+            <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">@L["権限"]</MudText>
+            @if (IsAdminRole)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">@L["管理者ロールは常にすべての権限を持ちます。"]</MudAlert>
+            }
+            <div class="jw-perm-grid">
+                @foreach (var g in Permissions.Groups)
+                {
+                    <div class="jw-perm-block">
+                        <MudCheckBox T="bool?" Value="GroupState(g)" ValueChanged="v => ToggleGroup(g, v)" TriState="true"
+                                     Label="@g.DisplayName" Color="Color.Primary" Dense="true" Disabled="IsAdminRole" Class="jw-perm-group-check" />
+                        <div class="jw-perm-items">
+                            @foreach (var p in g.Permissions)
+                            {
+                                <MudCheckBox T="bool" Value="_model.Permissions.Contains(p.Name)" ValueChanged="v => Toggle(p.Name, v)"
+                                             Label="@p.DisplayName" Color="Color.Primary" Dense="true" Size="Size.Small" Disabled="IsAdminRole" />
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => MudDialog.Cancel()">@L["キャンセル"]</MudButton>
+        <MudButton ButtonType="ButtonType.Submit" form="role-form" Variant="Variant.Filled" Color="Color.Primary" Disabled="_saving">@L["保存"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public RoleListItem? Role { get; set; }
+
+    private RoleInput _model = new();
+    private bool _saving;
+    private bool IsEdit => Role is not null;
+    private bool IsAdminRole => Role?.Name == Jw.Domain.Identity.SystemRoles.Admin;
+
+    protected override void OnInitialized()
+    {
+        if (Role is not null)
+            _model = new RoleInput
+            {
+                Id = Role.Id, Name = Role.Name, DisplayName = Role.DisplayName, Description = Role.Description,
+                Permissions = Role.Permissions.ToHashSet(),
+            };
+    }
+
+    private bool? GroupState(PermissionGroup g)
+    {
+        var n = g.Permissions.Count(p => _model.Permissions.Contains(p.Name));
+        return n == 0 ? false : n == g.Permissions.Count ? true : null;
+    }
+
+    private void ToggleGroup(PermissionGroup g, bool? on)
+    {
+        // 部分选中时点击 → 全选
+        var select = GroupState(g) != true;
+        foreach (var p in g.Permissions) Toggle(p.Name, select);
+    }
+
+    private void Toggle(string name, bool on)
+    {
+        if (on) _model.Permissions.Add(name); else _model.Permissions.Remove(name);
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        var ok = await Ui.RunAsync(() => Service.SaveAsync(_model), L["保存しました。"]);
+        _saving = false;
+        if (ok) MudDialog.Close(DialogResult.Ok(true));
+    }
+}

@@ -1,0 +1,29 @@
+@using Jw.Application.Auditing
+
+@* 审计记录的明细：字段变更显示为“项目 / 变更前 / 变更后”，其他信息原样显示 JSON *@
+@if (Item.Changes is { Count: > 0 } changes)
+{
+    <table class="jw-change-table">
+        <thead>
+            <tr><th>@L["項目"]</th><th>@L["変更前"]</th><th>@L["変更後"]</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var c in changes)
+            {
+                <tr>
+                    <td>@FieldNames.Of(c.Property)</td>
+                    <td class="jw-old">@c.Old</td>
+                    <td class="jw-new">@c.New</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else if (!string.IsNullOrEmpty(Item.Detail))
+{
+    <pre class="jw-detail-json">@Item.Detail</pre>
+}
+
+@code {
+    [Parameter, EditorRequired] public AuditLogItem Item { get; set; } = default!;
+}

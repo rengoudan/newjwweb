@@ -1,0 +1,100 @@
+@page "/admin/roles"
+@attribute [Authorize(Policy = Permissions.Admin.Roles)]
+@using Jw.Application.Users
+@inject RoleAdminService Service
+@inject IDialogService Dialogs
+@inject UiRunner Ui
+
+<PageTitle>@L["ロールと権限"]</PageTitle>
+
+<PageHeader Title="@L["ロールと権限"]" Description="@L["ロールごとに使える機能を設定します。変更すると、そのロールのユーザーは1分以内に再ログインが必要になります。"]">
+    <Actions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => EditAsync(null)">@L["ロールを追加"]</MudButton>
+    </Actions>
+</PageHeader>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+
+<MudGrid Spacing="3">
+    @foreach (var role in _items)
+    {
+        <MudItem xs="12" md="6" lg="4">
+            <MudPaper Class="jw-card pa-4 jw-role-card" Elevation="0">
+                <div class="jw-role-head">
+                    <div>
+                        <MudText Typo="Typo.h6">@role.DisplayName</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@role.Name ・ @string.Format(L["{0} 人"], role.UserCount)</MudText>
+                    </div>
+                    <div>
+                        @if (role.IsSystem)
+                        {
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text">@L["標準"]</MudChip>
+                        }
+                        <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditAsync(role)" />
+                        @if (!role.IsSystem)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteAsync(role)" />
+                        }
+                    </div>
+                </div>
+                @if (!string.IsNullOrEmpty(role.Description))
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">@role.Description</MudText>
+                }
+                <div class="jw-perm-summary">
+                    @foreach (var g in Permissions.Groups)
+                    {
+                        var granted = g.Permissions.Where(p => role.Permissions.Contains(p.Name)).ToList();
+                        <div class="jw-perm-row">
+                            <span class="jw-perm-group">@g.DisplayName</span>
+                            <span>
+                                @if (granted.Count == 0)
+                                {
+                                    <span class="jw-sub">—</span>
+                                }
+                                else
+                                {
+                                    @string.Join("・", granted.Select(p => p.DisplayName))
+                                }
+                            </span>
+                        </div>
+                    }
+                </div>
+            </MudPaper>
+        </MudItem>
+    }
+</MudGrid>
+
+@code {
+    private IReadOnlyList<RoleListItem> _items = [];
+    private bool _loading = true;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        await Ui.RunAsync(async () => _items = await Service.ListAsync());
+        _loading = false;
+    }
+
+    private async Task EditAsync(RoleListItem? role)
+    {
+        var parameters = new DialogParameters<RoleDialog> { { x => x.Role, role } };
+        var dialog = await Dialogs.ShowAsync<RoleDialog>(role is null ? L["ロールを追加"] : L["ロールを編集"], parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false }) await LoadAsync();
+    }
+
+    private async Task DeleteAsync(RoleListItem role)
+    {
+        var ok = await Dialogs.ShowMessageBoxAsync(L["削除の確認"], string.Format(L["ロール「{0}」を削除しますか？"], role.DisplayName),
+            yesText: L["削除する"], cancelText: L["キャンセル"]);
+        if (ok != true) return;
+        if (await Ui.RunAsync(() => Service.DeleteAsync(role.Id), L["削除しました。"])) await LoadAsync();
+    }
+}

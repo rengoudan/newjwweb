@@ -1,0 +1,34 @@
+<MudNavMenu Class="jw-nav" Color="Color.Primary" Bordered="false" Rounded="true" Margin="Margin.Dense">
+    <AuthorizeView Policy="@Permissions.Workbench.View" Context="_">
+        <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Outlined.Dashboard">@L["ワークベンチ"]</MudNavLink>
+    </AuthorizeView>
+
+    <div class="jw-nav-section">@L["業務"]</div>
+    <MudNavLink Disabled="true" Icon="@Icons.Material.Outlined.Apartment">@L["工事一覧"] <span class="jw-soon">@L["準備中"]</span></MudNavLink>
+    <AuthorizeView Policy="@Permissions.Customers.View" Context="_">
+        <MudNavLink Href="/customers" Icon="@Icons.Material.Outlined.Business">@L["顧客"]</MudNavLink>
+    </AuthorizeView>
+    <MudNavLink Disabled="true" Icon="@Icons.Material.Outlined.Calculate">@L["予算"] <span class="jw-soon">@L["準備中"]</span></MudNavLink>
+    <MudNavLink Disabled="true" Icon="@Icons.Material.Outlined.Inventory2">@L["基礎データ"] <span class="jw-soon">@L["準備中"]</span></MudNavLink>
+
+    <AuthorizeView Context="auth">
+        @if (HasAny(auth.User, Permissions.Admin.Users, Permissions.Admin.Roles, Permissions.Admin.Audit))
+        {
+            <div class="jw-nav-section">@L["システム管理"]</div>
+        }
+    </AuthorizeView>
+    <AuthorizeView Policy="@Permissions.Admin.Users" Context="_">
+        <MudNavLink Href="/admin/users" Icon="@Icons.Material.Outlined.People">@L["ユーザー"]</MudNavLink>
+    </AuthorizeView>
+    <AuthorizeView Policy="@Permissions.Admin.Roles" Context="_">
+        <MudNavLink Href="/admin/roles" Icon="@Icons.Material.Outlined.AdminPanelSettings">@L["ロールと権限"]</MudNavLink>
+    </AuthorizeView>
+    <AuthorizeView Policy="@Permissions.Admin.Audit" Context="_">
+        <MudNavLink Href="/admin/audit" Icon="@Icons.Material.Outlined.History">@L["操作ログ"]</MudNavLink>
+    </AuthorizeView>
+</MudNavMenu>
+
+@code {
+    private static bool HasAny(System.Security.Claims.ClaimsPrincipal user, params string[] permissions) =>
+        permissions.Any(p => user.HasClaim(Permissions.ClaimType, p));
+}
