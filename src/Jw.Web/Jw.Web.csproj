@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <ProjectReference Include="..\Jw.Infrastructure\Jw.Infrastructure.csproj" />
@@ -18,6 +18,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+    <UserSecretsId>491e912a-c8c9-43eb-beb5-2a7e50e7517b</UserSecretsId>
   </PropertyGroup>
 
 </Project>

@@ -180,7 +180,7 @@ dotnet run --project tools/LegacyImport -- --sqlite "D:\旧版\jwdata.db" --targ
 ## 开发运行
 
 开发环境用本机 SQL Server 的 `NewJwWeb_Dev` 库，连接串在 `src/Jw.Web/appsettings.Development.json`。启动时会自动迁移，并创建初始管理员 `admin`：
-- 初始密码取配置项 `Seed:AdminPassword`，首次登录后必须修改。
+- 初始密码取配置项 `Seed:AdminPassword`，首次登录后必须修改。开发环境请放在 user-secrets，不要写进仓库：`dotnet user-secrets set "Seed:AdminPassword" "<密码>" --project src/Jw.Web`
 - 生产环境不配这个值时，会随机生成密码并写入日志，只出现这一次。
 
 ```powershell
