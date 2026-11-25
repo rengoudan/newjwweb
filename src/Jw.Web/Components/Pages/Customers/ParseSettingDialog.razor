@@ -1,0 +1,99 @@
+@using Jw.Application.Customers
+@using Jw.Domain.Common
+@inject CustomerParseSettingService Service
+@inject UiRunner Ui
+@inject ICurrentUser CurrentUser
+
+<MudDialog>
+    <DialogContent>
+        @if (_model is null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else
+        {
+            @if (!_model.Exists)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">@L["まだ設定されていません。図面の線色・線種に合わせて設定してください。"]</MudAlert>
+            }
+            <EditForm id="parse-form" Model="_model" OnValidSubmit="SaveAsync">
+                <DataAnnotationsValidator />
+                <fieldset disabled="@ReadOnly" class="jw-fieldset">
+                    <div class="jw-setting-grid">
+                        <div class="jw-setting-label">@L["梁輪郭線"]</div>
+                        <div class="jw-setting-row">
+                            <PenSelect Kind="PenSelect.PenKind.Color" @bind-Value="_model.BeamColor" Label="@L["線色"]" />
+                        </div>
+
+                        <div class="jw-setting-label">@L["注釈（梁符号）"]</div>
+                        <div class="jw-setting-row">
+                            <PenSelect Kind="PenSelect.PenKind.Color" @bind-Value="_model.BeamTextColor" Label="@L["線色"]" />
+                        </div>
+
+                        <div class="jw-setting-label">@L["柱"]</div>
+                        <div class="jw-setting-row">
+                            <PenSelect Kind="PenSelect.PenKind.Color" @bind-Value="_model.PillarColor" Label="@L["線色"]" />
+                            <PenSelect Kind="PenSelect.PenKind.Style" @bind-Value="_model.PillarPenStyle" Label="@L["線種"]" />
+                            <EnumSelect T="ShapeRecognition" @bind-Value="_model.PillarRecognition" Label="@L["柱識別方法"]" Names="EnumNames.Of" />
+                        </div>
+
+                        <div class="jw-setting-label">@L["継手記号"]</div>
+                        <div class="jw-setting-row">
+                            <PenSelect Kind="PenSelect.PenKind.Color" @bind-Value="_model.SplitColor" Label="@L["線色"]" />
+                            <PenSelect Kind="PenSelect.PenKind.Style" @bind-Value="_model.SplitPenStyle" Label="@L["線種"]" />
+                            <EnumSelect T="ShapeRecognition" @bind-Value="_model.SplitRecognition" Label="@L["識別方法"]" Names="EnumNames.Of" />
+                        </div>
+
+                        <div class="jw-setting-label">@L["識別範囲エラー"]</div>
+                        <div class="jw-setting-row">
+                            <MudNumericField T="double" @bind-Value="_model.NearSplitMax" For="() => _model.NearSplitMax" Min="0" Step="0.5"
+                                             Variant="Variant.Outlined" Margin="Margin.Dense" Class="jw-setting-input" />
+                        </div>
+
+                        <div class="jw-setting-label">@L["下階柱記号"]</div>
+                        <div class="jw-setting-row">
+                            <PenSelect Kind="PenSelect.PenKind.Color" @bind-Value="_model.DownPillarColor" Label="@L["線色"]" />
+                        </div>
+
+                        <div class="jw-setting-label">@L["ブレース"]</div>
+                        <div class="jw-setting-row">
+                            <PenSelect Kind="PenSelect.PenKind.Color" @bind-Value="_model.BraceColor" Label="@L["線色"]" />
+                            <EnumSelect T="BraceComponent" @bind-Value="_model.BraceComponent" Label="@L["部材"]" Names="EnumNames.Of" />
+                            <EnumSelect T="BraceOrigin" @bind-Value="_model.BraceOrigin" Label="@L["ブレース起点"]" Names="EnumNames.Of" />
+                        </div>
+                    </div>
+                </fieldset>
+            </EditForm>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => MudDialog.Cancel()">@(ReadOnly ? L["閉じる"] : L["キャンセル"])</MudButton>
+        @if (!ReadOnly)
+        {
+            <MudButton ButtonType="ButtonType.Submit" form="parse-form" Variant="Variant.Filled" Color="Color.Primary" Disabled="_saving || _model is null">@L["保存"]</MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public Guid CustomerId { get; set; }
+
+    private ParseSettingInput? _model;
+    private bool _saving;
+    private bool ReadOnly => !CurrentUser.HasPermission(Permissions.Customers.Edit);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var ok = await Ui.RunAsync(async () => _model = await Service.GetAsync(CustomerId));
+        if (!ok) MudDialog.Cancel();
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        var ok = await Ui.RunAsync(() => Service.SaveAsync(_model!), L["保存しました。"]);
+        _saving = false;
+        if (ok) MudDialog.Close(DialogResult.Ok(true));
+    }
+}

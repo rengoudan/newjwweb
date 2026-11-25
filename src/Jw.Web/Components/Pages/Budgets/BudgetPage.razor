@@ -1,0 +1,172 @@
+@page "/budgets/{Id:guid}"
+@attribute [Authorize(Policy = Permissions.Budget.View)]
+@using Jw.Application.Budgets
+@using Jw.Domain.Common
+@inject BudgetService Service
+@inject IDialogService Dialogs
+@inject UiRunner Ui
+@inject ICurrentUser CurrentUser
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>@(_budget is null ? L["予算"] : string.Format(L["予算：{0}"], _budget.ProjectName))</PageTitle>
+
+<MudBreadcrumbs Items="_crumbs" Class="px-0 pt-0 pb-2" />
+
+@if (_budget is null)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <PageHeader Title="@string.Format(L["{0} の予算"], _budget.ProjectName)" Description="@(_budget.CustomerName)">
+        <Actions>
+            @if (CurrentUser.HasPermission(Permissions.Admin.Audit))
+            {
+                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.History" OnClick="HistoryAsync">@L["変更履歴"]</MudButton>
+            }
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Download"
+                       Disabled="_exporting || _budget.Lines.Count == 0" OnClick="ExportAsync">@L["見積書を出力"]</MudButton>
+            @if (CanEdit)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddLineAsync">@L["明細を追加"]</MudButton>
+                <MudMenu Icon="@Icons.Material.Filled.MoreVert" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true">
+                    <MudMenuItem Icon="@Icons.Material.Outlined.Apartment" Href="@($"/projects/{_budget.ProjectId}")">@L["工事を開く"]</MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Outlined.Delete" OnClick="DeleteAsync">@L["予算を削除"]</MudMenuItem>
+                </MudMenu>
+            }
+        </Actions>
+    </PageHeader>
+
+    <MudGrid Spacing="3">
+        <MudItem xs="12" lg="9">
+            <MudPaper Class="jw-card" Elevation="0">
+                <MudTable Items="_budget.Lines" Dense="true" Hover="true" Elevation="0" Class="jw-table" HorizontalScrollbar="true"
+                          GroupBy="_groupByKind" GroupHeaderClass="jw-group-head">
+                    <HeaderContent>
+                        <MudTh>@L["項目"]</MudTh>
+                        <MudTh>@L["仕様"]</MudTh>
+                        <MudTh Style="text-align:right">@L["数量"]</MudTh>
+                        <MudTh>@L["単位"]</MudTh>
+                        <MudTh Style="text-align:right">@L["単価"]</MudTh>
+                        <MudTh Style="text-align:right">@L["金額"]</MudTh>
+                        <MudTh>@L["区分"]</MudTh>
+                        <MudTh Style="width:1%"></MudTh>
+                    </HeaderContent>
+                    <GroupHeaderTemplate>
+                        <MudTh colspan="8">@L[EnumNames.Of((MaterialKind)context.Key!)] <span class="jw-sub">（@context.Items.Count()）</span></MudTh>
+                    </GroupHeaderTemplate>
+                    <RowTemplate>
+                        <MudTd>
+                            <b>@context.ItemName</b>
+                            @if (!string.IsNullOrEmpty(context.CategoryName))
+                            {
+                                <div class="jw-sub">@context.CategoryName</div>
+                            }
+                        </MudTd>
+                        <MudTd>@context.Spec</MudTd>
+                        <MudTd Style="text-align:right">@context.Quantity.ToString("#,0.###")</MudTd>
+                        <MudTd>@context.UnitName</MudTd>
+                        <MudTd Style="text-align:right">@context.UnitPrice.ToString("#,0.##")</MudTd>
+                        <MudTd Style="text-align:right"><b>@context.Amount.ToString("#,0.##")</b></MudTd>
+                        <MudTd><MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@SourceColor(context.Source)">@L[EnumNames.Of(context.Source)]</MudChip></MudTd>
+                        <MudTd Class="jw-row-actions">
+                            @if (CanEdit)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditLineAsync(context)" />
+                                <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteLineAsync(context)" />
+                            }
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <div class="jw-empty-inline">@L["明細がありません。「明細を追加」から材料を選んで追加してください。"]</div>
+                    </NoRecordsContent>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" lg="3">
+            <MudPaper Class="jw-card pa-5 jw-total-card" Elevation="0">
+                <div class="jw-total-row"><span>@L["小計"]</span><b>@Budgets.Money(_budget.Subtotal)</b></div>
+                <div class="jw-total-row"><span>@string.Format(L["消費税（{0}%）"], (_budget.TaxRate * 100).ToString("0"))</span><b>@Budgets.Money(_budget.Tax)</b></div>
+                <MudDivider Class="my-2" />
+                <div class="jw-total-row jw-total-grand"><span>@L["総合計"]</span><b>@Budgets.Money(_budget.Total)</b></div>
+                <div class="jw-sub mt-3">@L["作成日"]: @TimeDisplay.Format(_budget.CreatedAt)</div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private BudgetDetail? _budget;
+    private List<BreadcrumbItem> _crumbs = [];
+    private bool _exporting;
+    private readonly TableGroupDefinition<BudgetLineItem> _groupByKind = new() { Selector = l => l.Kind, Indentation = false };
+
+    private bool CanEdit => CurrentUser.HasPermission(Permissions.Budget.Edit);
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var ok = await Ui.RunAsync(async () => _budget = await Service.GetAsync(Id));
+        if (!ok) { Nav.NavigateTo("/budgets"); return; }
+        _crumbs = [new(L["予算"], "/budgets"), new(_budget!.ProjectName, null, disabled: true)];
+    }
+
+    private async Task AddLineAsync()
+    {
+        var parameters = new DialogParameters<BudgetLineDialog> { { x => x.BudgetId, Id } };
+        var dialog = await Dialogs.ShowAsync<BudgetLineDialog>(L["明細を追加"], parameters);
+        if (await dialog.Result is { Canceled: false }) await LoadAsync();
+    }
+
+    private async Task EditLineAsync(BudgetLineItem line)
+    {
+        var parameters = new DialogParameters<BudgetLineDialog> { { x => x.BudgetId, Id }, { x => x.Line, line } };
+        var dialog = await Dialogs.ShowAsync<BudgetLineDialog>(L["明細を編集"], parameters);
+        if (await dialog.Result is { Canceled: false }) await LoadAsync();
+    }
+
+    private async Task DeleteLineAsync(BudgetLineItem line)
+    {
+        var ok = await Dialogs.ShowMessageBoxAsync(L["削除の確認"], string.Format(L["明細「{0}」を削除しますか？"], line.ItemName),
+            yesText: L["削除する"], cancelText: L["キャンセル"]);
+        if (ok != true) return;
+        if (await Ui.RunAsync(() => Service.DeleteLineAsync(Id, line.Id), L["削除しました。"])) await LoadAsync();
+    }
+
+    private async Task DeleteAsync()
+    {
+        var ok = await Dialogs.ShowMessageBoxAsync(L["削除の確認"], string.Format(L["「{0}」の予算を削除しますか？明細もすべて削除されます。"], _budget!.ProjectName),
+            yesText: L["削除する"], cancelText: L["キャンセル"]);
+        if (ok != true) return;
+        if (await Ui.RunAsync(() => Service.DeleteAsync(Id), L["削除しました。"])) Nav.NavigateTo("/budgets");
+    }
+
+    private async Task ExportAsync()
+    {
+        _exporting = true;
+        ExportedFile? file = null;
+        if (await Ui.RunAsync(async () => file = await Service.ExportQuotationAsync(Id)))
+        {
+            using var stream = new MemoryStream(file!.Content);
+            using var streamRef = new DotNetStreamReference(stream);
+            await JS.InvokeVoidAsync("jwDownload", file.FileName, streamRef);
+        }
+        _exporting = false;
+    }
+
+    private Task HistoryAsync() =>
+        Dialogs.ShowAsync<HistoryDialog>(string.Format(L["変更履歴：{0}"], _budget!.ProjectName),
+            new DialogParameters<HistoryDialog> { { x => x.EntityType, "Budget" }, { x => x.EntityId, Id.ToString() } },
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+
+    private static Color SourceColor(BudgetLineSource s) => s switch
+    {
+        BudgetLineSource.Auto => Color.Primary,
+        BudgetLineSource.AutoFailed => Color.Error,
+        _ => Color.Default,
+    };
+}

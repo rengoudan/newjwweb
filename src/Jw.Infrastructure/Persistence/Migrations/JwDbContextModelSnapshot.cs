@@ -83,6 +83,215 @@ namespace Jw.Infrastructure.Persistence.Migrations
                     b.ToTable("AuditLogs", (string)null);
                 });
 
+            modelBuilder.Entity("Jw.Domain.Budgets.Budget", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DeletedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DeletedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ModifiedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ModifiedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("Budgets", (string)null);
+                });
+
+            modelBuilder.Entity("Jw.Domain.Budgets.BudgetLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("BudgetId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DeletedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DeletedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("MaterialId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ModifiedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ModifiedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Spec")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("UnitName")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BudgetId");
+
+                    b.ToTable("BudgetLines", (string)null);
+                });
+
+            modelBuilder.Entity("Jw.Domain.Common.SystemSetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DeletedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DeletedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ModifiedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ModifiedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Key")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("SystemSettings", (string)null);
+                });
+
             modelBuilder.Entity("Jw.Domain.Customers.Customer", b =>
                 {
                     b.Property<Guid>("Id")
@@ -154,6 +363,159 @@ namespace Jw.Infrastructure.Persistence.Migrations
                         .HasFilter("[IsDeleted] = 0");
 
                     b.ToTable("Customers", (string)null);
+                });
+
+            modelBuilder.Entity("Jw.Domain.Customers.CustomerParseSetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("BeamColor")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BeamTextColor")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BraceColor")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BraceComponent")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BraceOrigin")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DeletedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DeletedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("DownPillarColor")
+                        .HasColumnType("int");
+
+                    b.Property<double>("Gap")
+                        .HasColumnType("float");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ModifiedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ModifiedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<double>("NearSplitMax")
+                        .HasColumnType("float");
+
+                    b.Property<int>("PickPrecision")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PillarColor")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PillarPenStyle")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PillarRecognition")
+                        .HasColumnType("int");
+
+                    b.Property<double>("Scale")
+                        .HasColumnType("float");
+
+                    b.Property<int>("SplitColor")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SplitPenStyle")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SplitRecognition")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId")
+                        .IsUnique();
+
+                    b.ToTable("CustomerParseSettings", (string)null);
+                });
+
+            modelBuilder.Entity("Jw.Domain.Files.StoredFile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<long>("Size")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("UploadedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UploadedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Sha256");
+
+                    b.ToTable("StoredFiles", (string)null);
                 });
 
             modelBuilder.Entity("Jw.Domain.Identity.AppRole", b =>
@@ -279,6 +641,976 @@ namespace Jw.Infrastructure.Persistence.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
+            modelBuilder.Entity("Jw.Domain.Materials.Material", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DeletedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DeletedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("GeneralTitle")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ModifiedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ModifiedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<double>("NumParameter")
+                        .HasColumnType("float");
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<string>("Spec")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("UnitName")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("GeneralTitle");
+
+                    b.HasIndex("Name", "Spec")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("Materials", (string)null);
+                });
+
+            modelBuilder.Entity("Jw.Domain.Materials.MaterialCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<Guid?>("DefaultMaterialId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DeletedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DeletedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ModifiedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ModifiedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("MaterialCategories", (string)null);
+                });
+
+            modelBuilder.Entity("Jw.Domain.Projects.Floor", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("BCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BGCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BeamCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BraceComponent")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DeletedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DeletedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("DirectionType")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ExportCount")
+                        .HasColumnType("int");
+
+                    b.Property<double>("Height")
+                        .HasColumnType("float");
+
+                    b.Property<int>("HorizontalBeamsCount")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("KPillarCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("KPillarType")
+                        .HasColumnType("int");
+
+                    b.Property<double>("LocationX")
+                        .HasColumnType("float");
+
+                    b.Property<double>("LocationY")
+                        .HasColumnType("float");
+
+                    b.Property<int?>("MarkBeam")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("MinimalStrategy")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ModifiedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ModifiedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long>("ParseElapsedMs")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ParseOptionsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("PillarCount")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<double>("Scale")
+                        .HasColumnType("float");
+
+                    b.Property<string>("ScaleText")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("SinglePillarCount")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("SourceFileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("VerticalBeamsCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("WarningsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<double>("Width")
+                        .HasColumnType("float");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SourceFileId");
+
+                    b.HasIndex("ProjectId", "Name")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("Floors", (string)null);
+                });
+
+            modelBuilder.Entity("Jw.Domain.Projects.Project", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("BCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BGCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BeamCount")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<Guid?>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DeletedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DeletedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("ExportCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FloorQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("KPillarCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ModifiedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ModifiedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("ParsedQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PillarCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Scale")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("SinglePillarCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SiteAddress")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("Name");
+
+                    b.ToTable("Projects", (string)null);
+                });
+
+            modelBuilder.Entity("JwCore.JwAddedHoleMarkData", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("CreationTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DirectionType")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("HasBeam")
+                        .HasColumnType("bit");
+
+                    b.Property<double>("Height")
+                        .HasColumnType("float");
+
+                    b.Property<string>("HoleCenter")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("JwBeamDataId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("JwProjectSubDataId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("LineAE")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("LineAS")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("LineBE")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("LineBS")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<double>("Scale")
+                        .HasColumnType("float");
+
+                    b.Property<int>("Seq")
+                        .HasColumnType("int");
+
+                    b.Property<double>("Width")
+                        .HasColumnType("float");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JwBeamDataId");
+
+                    b.HasIndex("JwProjectSubDataId");
+
+                    b.ToTable("FloorAddedHoleMarks", (string)null);
+                });
+
+            modelBuilder.Entity("JwCore.JwBeamData", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("BaiFangGTBDistance")
+                        .HasColumnType("int");
+
+                    b.Property<string>("BeamCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BeamSignature")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BeamXHId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("BeamXHName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CenterPoint")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<DateTime>("CreationTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DirectionType")
+                        .HasColumnType("int");
+
+                    b.Property<double>("EndCenter")
+                        .HasColumnType("float");
+
+                    b.Property<int>("EndTelosType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FloorName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("GongQu")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("HasBFG")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasCsv")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasEndSide")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasQieGe")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasStartSide")
+                        .HasColumnType("bit");
+
+                    b.Property<double>("Height")
+                        .HasColumnType("float");
+
+                    b.Property<string>("InitialBeamCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsParentBeam")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsQiegeBeam")
+                        .HasColumnType("bit");
+
+                    b.Property<double>("Jiaodu")
+                        .HasColumnType("float");
+
+                    b.Property<string>("JwProjectSubDataId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<double>("Length")
+                        .HasColumnType("float");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<int>("QieGeCount")
+                        .HasColumnType("int");
+
+                    b.Property<double>("Scale")
+                        .HasColumnType("float");
+
+                    b.Property<int>("Seq")
+                        .HasColumnType("int");
+
+                    b.Property<double>("StartCenter")
+                        .HasColumnType("float");
+
+                    b.Property<int>("StartTelosType")
+                        .HasColumnType("int");
+
+                    b.Property<double>("Width")
+                        .HasColumnType("float");
+
+                    b.Property<double>("XXLength")
+                        .HasColumnType("float");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JwProjectSubDataId");
+
+                    b.ToTable("FloorBeams", (string)null);
+                });
+
+            modelBuilder.Entity("JwCore.JwBeamVerticalData", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<double>("Center")
+                        .HasColumnType("float");
+
+                    b.Property<DateTime>("CreationTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("HasLast")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasPre")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("JwBeamDataId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Seq")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JwBeamDataId");
+
+                    b.ToTable("FloorBeamVerticals", (string)null);
+                });
+
+            modelBuilder.Entity("JwCore.JwCutting", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("FirstPoint")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("JwProjectSubDataId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("SecondPoint")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<int>("Seq")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ThirdPoint")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JwProjectSubDataId");
+
+                    b.ToTable("FloorCuttings", (string)null);
+                });
+
+            modelBuilder.Entity("JwCore.JwDownPillarData", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("CreationTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DirectionType")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("HasBeam")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasPillar")
+                        .HasColumnType("bit");
+
+                    b.Property<double>("Height")
+                        .HasColumnType("float");
+
+                    b.Property<string>("JwProjectSubDataId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("LineAE")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("LineAS")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("LineBE")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("LineBS")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<double>("Scale")
+                        .HasColumnType("float");
+
+                    b.Property<int>("Seq")
+                        .HasColumnType("int");
+
+                    b.Property<double>("Width")
+                        .HasColumnType("float");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JwProjectSubDataId");
+
+                    b.ToTable("FloorDownPillars", (string)null);
+                });
+
+            modelBuilder.Entity("JwCore.JwHoleData", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("ChangeFrom")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreationTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DirectionType")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FirstCreateFrom")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("HasBhLinkHole")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasBottom")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasCenter")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasPreLinkHole")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasTop")
+                        .HasColumnType("bit");
+
+                    b.Property<double>("Height")
+                        .HasColumnType("float");
+
+                    b.Property<int>("HoleType")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsEnd")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsMachining")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsStart")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("JwBeamDataId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("KongNum")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<double>("Scale")
+                        .HasColumnType("float");
+
+                    b.Property<int>("Seq")
+                        .HasColumnType("int");
+
+                    b.Property<double>("Width")
+                        .HasColumnType("float");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JwBeamDataId");
+
+                    b.ToTable("FloorHoles", (string)null);
+                });
+
+            modelBuilder.Entity("JwCore.JwLianjieData", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("CreateFrom")
+                        .HasColumnType("int");
+
+                    b.Property<string>("End")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("EndOriginal")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<bool>("HasEndChange")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasStartChange")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("JwProjectSubDataId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<double>("Length")
+                        .HasColumnType("float");
+
+                    b.Property<string>("ProjectSubName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Seq")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Start")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("StartOriginal")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<int>("VPLEndPosition")
+                        .HasColumnType("int");
+
+                    b.Property<int>("VPLStartPosition")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JwProjectSubDataId");
+
+                    b.ToTable("FloorLianjies", (string)null);
+                });
+
+            modelBuilder.Entity("JwCore.JwLinkPartData", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("BeamId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("BujianName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("CreateFrom")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreationTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Directed")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DirectionType")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GouJianType")
+                        .HasColumnType("int");
+
+                    b.Property<double>("Height")
+                        .HasColumnType("float");
+
+                    b.Property<bool>("IsLianjie")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsNoBeam")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("JwProjectSubDataId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<double>("Scale")
+                        .HasColumnType("float");
+
+                    b.Property<int>("Seq")
+                        .HasColumnType("int");
+
+                    b.Property<double>("Width")
+                        .HasColumnType("float");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JwProjectSubDataId");
+
+                    b.ToTable("FloorLinkParts", (string)null);
+                });
+
+            modelBuilder.Entity("JwCore.JwPillarData", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("BaseType")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BlocksCount")
+                        .HasColumnType("int");
+
+                    b.Property<double?>("CenterHeight")
+                        .HasColumnType("float");
+
+                    b.Property<string>("CenterLocation")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<double?>("CenterWidth")
+                        .HasColumnType("float");
+
+                    b.Property<DateTime>("CreationTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DirectionType")
+                        .HasColumnType("int");
+
+                    b.Property<double?>("FirstHeight")
+                        .HasColumnType("float");
+
+                    b.Property<string>("FirstLocation")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<double?>("FirstWidth")
+                        .HasColumnType("float");
+
+                    b.Property<double>("Height")
+                        .HasColumnType("float");
+
+                    b.Property<string>("JwProjectSubDataId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<double?>("LastHeight")
+                        .HasColumnType("float");
+
+                    b.Property<string>("LastLocation")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<double?>("LastWidth")
+                        .HasColumnType("float");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("PillarCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<double>("Scale")
+                        .HasColumnType("float");
+
+                    b.Property<int>("Seq")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TaggTitle")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<double>("Width")
+                        .HasColumnType("float");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JwProjectSubDataId");
+
+                    b.ToTable("FloorPillars", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.Property<int>("Id")
@@ -382,6 +1714,98 @@ namespace Jw.Infrastructure.Persistence.Migrations
                     b.ToTable("UserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Jw.Domain.Budgets.Budget", b =>
+                {
+                    b.HasOne("Jw.Domain.Projects.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("Jw.Domain.Budgets.BudgetLine", b =>
+                {
+                    b.HasOne("Jw.Domain.Budgets.Budget", "Budget")
+                        .WithMany("Lines")
+                        .HasForeignKey("BudgetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Budget");
+                });
+
+            modelBuilder.Entity("Jw.Domain.Customers.CustomerParseSetting", b =>
+                {
+                    b.HasOne("Jw.Domain.Customers.Customer", "Customer")
+                        .WithOne("ParseSetting")
+                        .HasForeignKey("Jw.Domain.Customers.CustomerParseSetting", "CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("Jw.Domain.Materials.Material", b =>
+                {
+                    b.HasOne("Jw.Domain.Materials.MaterialCategory", "Category")
+                        .WithMany("Materials")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("Jw.Domain.Projects.Floor", b =>
+                {
+                    b.HasOne("Jw.Domain.Projects.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Jw.Domain.Files.StoredFile", "SourceFile")
+                        .WithMany()
+                        .HasForeignKey("SourceFileId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Project");
+
+                    b.Navigation("SourceFile");
+                });
+
+            modelBuilder.Entity("Jw.Domain.Projects.Project", b =>
+                {
+                    b.HasOne("Jw.Domain.Customers.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("JwCore.JwBeamVerticalData", b =>
+                {
+                    b.HasOne("JwCore.JwBeamData", "JwBeamData")
+                        .WithMany("JwBeamVerticalDatas")
+                        .HasForeignKey("JwBeamDataId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("JwBeamData");
+                });
+
+            modelBuilder.Entity("JwCore.JwHoleData", b =>
+                {
+                    b.HasOne("JwCore.JwBeamData", "JwBeamData")
+                        .WithMany("JwHoles")
+                        .HasForeignKey("JwBeamDataId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("JwBeamData");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("Jw.Domain.Identity.AppRole", null)
@@ -431,6 +1855,28 @@ namespace Jw.Infrastructure.Persistence.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Jw.Domain.Budgets.Budget", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Jw.Domain.Customers.Customer", b =>
+                {
+                    b.Navigation("ParseSetting");
+                });
+
+            modelBuilder.Entity("Jw.Domain.Materials.MaterialCategory", b =>
+                {
+                    b.Navigation("Materials");
+                });
+
+            modelBuilder.Entity("JwCore.JwBeamData", b =>
+                {
+                    b.Navigation("JwBeamVerticalDatas");
+
+                    b.Navigation("JwHoles");
                 });
 #pragma warning restore 612, 618
         }

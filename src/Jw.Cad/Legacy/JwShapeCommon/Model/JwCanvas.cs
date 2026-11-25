@@ -1,0 +1,379 @@
+using JwCore;
+using JwShapeCommon.Model;
+using JwwHelper;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace JwShapeCommon
+{
+    /// <summary>
+    /// 对应floor
+    /// </summary>
+    public partial class JwCanvas:JwSquareBase, IDrawToJww
+    {
+        /// <summary>
+        ///
+        /// </summary>
+        public JwProjectSubData JwProjectSubData { get; set; }
+
+        public string FloorName { get; set; }
+
+        ///// <summary>
+        ///// 左上
+        ///// </summary>
+        //public JWPoint? TopLeft { get; set; }
+
+        ///// <summary>
+        ///// 右上
+        ///// </summary>
+        //public JWPoint? TopRight { get; set; }
+
+        ///// <summary>
+        ///// 左下
+        ///// </summary>
+        //public JWPoint? BottomLeft { get; set; }
+
+        ///// <summary>
+        ///// 右下
+        ///// </summary>
+        //public JWPoint? BottomRight { get; set; }
+
+        //public JWPoint? CenterPoint { get; set; }
+
+
+        //public double? Width { get; set; }
+        //public double? Height { get; set; }
+
+        public double? MinX { get; set; }
+
+        public double? MaxY { get; set; }
+
+        public List<JwBeam> Beams { get; set; }
+
+        public List<JWPoint> Points { get; set; }
+
+
+        public List<JwPillar> Pillars { get; set; }
+
+        public List<JwBeam> ParentBeams { get; set; }
+
+        public List<JwLinkPart> LinkParts { get; set; }
+
+        public List<JwDownPillarMark> JwDownPillarDatas { get; set; }
+
+        public List<JwDirected> Directeds { get; set; }
+
+        public int BBCount { get; set; }
+
+        public int BGCount { get; set; }
+
+        public double Scale { get; set; }
+
+        public int PillarCount { get; set; }
+
+        public int SinglePillarCount { get; set; }
+
+        public int KPillarCount { get; set; }
+
+        public int HorizontalBeamsCount = 0;
+
+        public int VerticalBeamsCount = 0;
+
+        public List<JwBeam> HorizontalBeams { get; set; }
+
+        public List<JwBeam> VerticalBeams { get; set; }
+
+        public List<JwLianjieSingle> LianjieSingles = new List<JwLianjieSingle>();
+
+        public List<JwLianjie> LianjieLsts = new List<JwLianjie>();
+
+        public List<JwAddedHoleMark> AddedHoleMarks = new List<JwAddedHoleMark>();
+
+        public bool IsFromData = false;
+
+        public KPillarType KPillarType { get; set; }
+
+        public LianjieCompentType LianjieCompentType { get; set; }
+
+        public JwCanvas(JwDrawing drawing) : base(drawing) { }
+
+        public JwCanvas(JwDrawing drawing, JWPoint? topLeft,JWPoint? topRight,JWPoint? bottomLeft,JWPoint? bottomRight, List<JwBeam> _beams, List<JWPoint> _points,double? width,double? height,List<JwPillar> pillars,List<JwBeam> _parentbeams) : base(drawing)
+        {
+            TopLeft = topLeft;
+            TopRight = topRight;
+            BottomLeft = bottomLeft;
+            BottomRight = bottomRight;
+            Beams = _beams;
+            Points = _points;
+            Width = width.Value;
+            Height= height.Value;
+            MinX = TopLeft?.X;
+            MaxY = TopLeft?.Y;
+            var cx = topRight.X-(topRight.X - topLeft.X) / 2;
+            var cy = topRight.Y - (topRight.Y - bottomRight.Y) / 2;
+            CenterPoint=new JWPoint(cx, cy);
+            Pillars = pillars;
+            ParentBeams = _parentbeams;
+        }
+
+        public JwCanvas(JwDrawing drawing, JwProjectSubData data) : base(drawing)
+        {
+            //JwCanvas jwCanvas
+
+            if (data.BeamCount > 0)
+            {
+                foreach(var bm in data.JwBeamDatas)
+                {
+                    var jwbm = bm.DataToJw<JwBeam>(Drawing);
+                    jwbm.BeamCode = bm.BeamCode;
+                    jwbm.HasQieGe = bm.HasQieGe;
+                    jwbm.IsParentBeam = bm.IsParentBeam;
+                    jwbm.IsQiegeBeam = bm.IsQiegeBeam;
+                    jwbm.QieGeCount = bm.QieGeCount;
+                    jwbm.Id= bm.Id;
+                }
+            }
+            if(data.JwPillarDatas.Count> 0)
+            {
+                foreach (var bp in data.JwPillarDatas)
+                {
+                    var jwbm = bp.DataToJw<JwPillar>(Drawing);
+                    jwbm.PillarCode = bp.PillarCode;
+                    jwbm.Id = bp.Id;
+                    jwbm.BaseType = bp.BaseType;
+                    jwbm.Blocks = new List<JwBlock>();
+                    if(jwbm.BaseType==PillarBaseType.KPillar)
+                    {
+                        jwbm.Blocks.Add(bp.FirstLocation.DataToJwBlock(bp.FirstWidth.Value, bp.FirstHeight.Value, Drawing));
+                        jwbm.Blocks.Add(bp.CenterLocation.DataToJwBlock(bp.CenterWidth.Value, bp.CenterHeight.Value, Drawing));
+                        jwbm.Blocks.Add(bp.LastLocation.DataToJwBlock(bp.LastWidth.Value, bp.LastHeight.Value, Drawing));
+                    }
+                    else
+                    {
+                        jwbm.Blocks.Add(bp.Location.DataToJwBlock(bp.Width,bp.Height, Drawing));
+                    }
+                }
+            }
+            
+        }
+
+        /// <summary>
+        /// 导出加工csv
+        /// </summary>
+        /// <returns></returns>
+        public string ToProcessCsv()
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append("CBF V2.0\r\n");
+            //sb.Append(string.Format("{0},{1}-,{2}-,{3},,, {4}, 0.0, {5}, {6}, 0, 0.0, 0.0\r\n", "", "", "", "", "H-200x100x5.5x8", "", ""));
+            int i = 1;
+            foreach (var item in Beams)
+            {
+                
+                sb.Append(item.ToProcessCsv(JwProjectSubData.FloorName,JwProjectSubData.DefaultBeamXHName,i));
+                i++;
+            }
+            //foreach (var item in ExcelSubDatas)
+            //{
+            //    //this.uiIntegerUpDown1.Value = (int)Properties.Settings.Default.Kongjing;
+            //    var kongju = Properties.Settings.Default.Kongju;
+            //    sb.Append(item.DrawToCsv(kongju, issingle));
+            //}
+            //sb.Append("START\r\n");
+            //sb.Append(string.Format("{0},{1},{2},{3},,, {4}, 0.0, 2175.0, 1, 0, 0.0, 0.0\r\n", Zhipinfanhao, mingcheng1, mingcheng2, mingcheng3, gangcaizhi, SingleBeamLength.ToString("0.0")));
+            //sb.Append("0, 0, 0, , 0, 0\r\n");
+            //sb.Append(TopBeam.DrawToCsv(0));
+            //sb.Append(CenterBeam.DrawToCsv(1));
+            //sb.Append(BottomBeam.DrawToCsv(0));
+            //sb.Append("END\r\n");
+            return sb.ToString();
+        }
+
+        private List<JwwData> OthersDatas=new List<JwwData>();
+
+        public List<JwwData> DrawToJww()
+        {
+            List<JwwData> jd = new List<JwwData>();
+            
+            foreach (var item in Beams)
+            {
+                jd.AddRange(item.DrawToJww());
+            }
+            foreach (var lj in LianjieLsts)
+            {
+                jd.AddRange(lj.DrawToJww());
+            }
+
+            if (OthersDatas.Count>0)
+            {
+                jd.AddRange(OthersDatas);
+            }
+            //链接Ten color 9 
+
+            return jd;
+        }
+
+        /// <summary>
+        /// 绘制带孔的施工图
+        /// 将孔的绘制下放至beam里
+        /// top不绘制支撑
+        /// G端上下为4孔
+        /// </summary>
+        /// <returns></returns>
+        public List<JwwData> DrawShigong(bool istop)
+        {
+            List<JwwData> jd = new List<JwwData>();
+
+            foreach (var item in Beams)
+            {
+                jd.AddRange(item.DrawBeamWithHoleToJww(istop));
+            }
+            //foreach (var lj in LianjieLsts)
+            //{
+            //    jd.AddRange(lj.DrawToJww());
+            //}
+            if (OthersDatas?.Count > 0)
+            {
+                jd.AddRange(OthersDatas);
+            }
+            if (Pillars?.Count > 0)
+            {
+                foreach(var zhu in Pillars)
+                {
+                    jd.AddRange(zhu.ToJwwData());
+                }
+            }
+
+            if(JwDownPillarDatas?.Count>0)
+            {
+                foreach(var zhu in JwDownPillarDatas)
+                {
+                    jd.AddRange(zhu.ToJwwData());
+                }
+            }
+
+            if(Directeds?.Count>0)
+            {
+                foreach(var dd in Directeds)
+                {
+                    jd.Add(dd.ToJwwData());
+                }
+            }
+            if (this.LianjieCompentType == LianjieCompentType.VPL)
+            {
+                foreach (var lj in LianjieLsts)
+                {
+                    jd.AddRange(lj.DrawToJww());
+                    JwVpl vpls = new JwVpl(Drawing, lj.Start, lj.VPLStartPosition);
+                    jd.AddRange(vpls.DrawToJww());
+                    JwVpl vple = new JwVpl(Drawing, lj.End, lj.VPLEndPosition);
+                    jd.AddRange(vple.DrawToJww());
+                }
+            }
+            else
+            {
+                foreach (var lj in LianjieLsts)
+                {
+                    jd.AddRange(lj.DrawToJww());
+                }
+            }
+            jd.AddRange(DrawGridDimensions()); // 2026年11月23日 通り芯の寸法（JwCanvas.GridDimensions.cs）
+                return jd;
+        }
+
+
+
+        /// <summary>
+        /// 施工图连接线
+        /// </summary>
+        /// <returns></returns>
+        public List<JwwData> DrawLinesToJww()
+        {
+            List<JwwData> jd = new List<JwwData>();
+
+            foreach (var item in Beams)
+            {
+                jd.AddRange(item.DrawToJww());
+            }
+            foreach (var lj in LianjieLsts)
+            {
+                jd.AddRange(lj.DrawToJww());
+            }
+
+            if (OthersDatas.Count > 0)
+            {
+                jd.AddRange(OthersDatas);
+            }
+            //链接Ten color 9 
+            jd.AddRange(DrawGridDimensions()); // 2026年11月23日 通り芯の寸法（JwCanvas.GridDimensions.cs）
+
+            return jd;
+        }
+
+        public void BindDrawOtherEvent()
+        {
+            Drawing.Events.DrawAuxiliaryLineEvent+=DrawAuxiliaryLine;
+        }
+
+        /// <summary>
+        /// 绘制辅助线 canvas 确定范围的方法重新确认
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        private void DrawAuxiliaryLine(object? sender, DrawAuxiliaryLineArgs e)
+        {
+            if (e.DirectionType == BeamDirectionType.Horizontal)
+            {
+                var sen = new JwwSen();
+                sen.m_nPenColor = 1;
+                sen.m_start_x = TopLeft.X - 200;
+                sen.m_start_y = e.Auxiliary;
+                sen.m_end_x = TopRight.X+200;
+                sen.m_end_y = e.Auxiliary; 
+                sen.m_nPenStyle = 2;
+                sen.m_nPenWidth = 0;
+                sen.m_nLayer = (int)DrawShapeType.None+1;
+                OthersDatas.Add(sen);
+            }
+            else
+            {
+                var sen = new JwwSen();
+                sen.m_nPenColor = 1;
+                sen.m_start_x = e.Auxiliary;
+                sen.m_start_y = TopLeft.Y + 200;
+                sen.m_end_x = e.Auxiliary;
+                sen.m_end_y = BottomLeft.Y - 200;
+                sen.m_nPenStyle = 2;
+                sen.m_nPenWidth = 0;
+                sen.m_nLayer = (int)DrawShapeType.None + 1;
+                OthersDatas.Add(sen);
+            }
+        }
+
+        public void Revision()
+        {
+            
+            //2025年12月7日 针对相同的梁符号进行abcd后缀处理
+            var grouped = Beams.GroupBy(t => t.InitialBeamCode).Where(g => g.Count() > 1);
+
+            foreach (var group in grouped)
+            {
+                char suffix = 'A';
+                foreach (var beam in group)
+                {
+                    if (suffix == 'I' || suffix == 'O')
+                    {
+                        suffix++;
+                    }
+                    //beam.BeamCode= beam.BeamCode.TrimEnd('A');
+                    beam.BeamCode = $"{group.Key.TrimEnd('A')}{suffix}";
+                    suffix++;
+                }
+            }
+        }
+    }
+}

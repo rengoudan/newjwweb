@@ -1,0 +1,17 @@
+@using Jw.Application.Customers
+@using Jw.Domain.Common
+
+@* 解析設定の要約表示（読み取り専用） *@
+<dl class="jw-props jw-props-compact">
+    <dt>@L["梁輪郭線"]</dt><dd>@JwPen.ColorName(Setting.BeamColor)</dd>
+    <dt>@L["注釈"]</dt><dd>@JwPen.ColorName(Setting.BeamTextColor)</dd>
+    <dt>@L["柱"]</dt><dd>@JwPen.ColorName(Setting.PillarColor) ・ @JwPen.StyleName(Setting.PillarPenStyle) ・ @L[EnumNames.Of(Setting.PillarRecognition)]</dd>
+    <dt>@L["継手記号"]</dt><dd>@JwPen.ColorName(Setting.SplitColor) ・ @JwPen.StyleName(Setting.SplitPenStyle) ・ @L[EnumNames.Of(Setting.SplitRecognition)]</dd>
+    <dt>@L["識別範囲エラー"]</dt><dd>@Setting.NearSplitMax</dd>
+    <dt>@L["下階柱記号"]</dt><dd>@JwPen.ColorName(Setting.DownPillarColor)</dd>
+    <dt>@L["ブレース"]</dt><dd>@JwPen.ColorName(Setting.BraceColor) ・ @Setting.BraceComponent ・ @L[EnumNames.Of(Setting.BraceOrigin)]</dd>
+</dl>
+
+@code {
+    [Parameter, EditorRequired] public ParseSettingInput Setting { get; set; } = default!;
+}

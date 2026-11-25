@@ -1,0 +1,17 @@
+@typeparam T where T : struct, Enum
+
+<MudSelect T="T" Value="Value" ValueChanged="ValueChanged" Label="@Label" Variant="Variant.Outlined" Margin="Margin.Dense"
+           Dense="true" Class="jw-setting-input" AnchorOrigin="Origin.BottomCenter" Disabled="Disabled">
+    @foreach (var v in Enum.GetValues<T>())
+    {
+        <MudSelectItem T="T" Value="v">@L[Names(v)]</MudSelectItem>
+    }
+</MudSelect>
+
+@code {
+    [Parameter] public T Value { get; set; }
+    [Parameter] public EventCallback<T> ValueChanged { get; set; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter, EditorRequired] public Func<T, string> Names { get; set; } = v => v.ToString();
+}

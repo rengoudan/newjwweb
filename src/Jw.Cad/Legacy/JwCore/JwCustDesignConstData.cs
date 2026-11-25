@@ -1,0 +1,74 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace JwCore
+{
+    public class JwCustDesignConstData: BaseEntityData
+    {
+        public int PickPrecision { get; set; }
+
+
+        public double JwJianxi { get; set; }
+
+        /// <summary>
+        /// bili
+        /// </summary>
+        public double JwScale { get; set; }
+
+        public int BeamParseColorNumber { get; set; }
+
+        public int BeamSplitParseColor { get; set; }
+
+        public int BeamPillarParseColor { get; set; }
+
+        public int PillarPenStyle { get; set; }
+
+
+        /// <summary>
+        /// 切割标识距离梁距离
+        /// </summary>
+        public double NearSpliteMax { get; set; }
+
+        public int SplitPenStyle { get; set; }
+
+        public int BeamSymbolTextColorNumber { get; set; }
+
+        /// <summary>
+        /// 叉号标识下方有柱
+        /// </summary>
+        public int DownPillarColorNumber { get; set; }
+
+        ///// <summary>
+        ///// BR金屋识别规则 
+        ///// </summary>
+        //public int BRParseColore { get; set; }
+
+        //public int BRParseStyle { get; set; }
+
+        public int LianjieColorNumber { get; set; }
+
+        /// <summary>
+        /// 链接解析方式 考虑是否用枚举 0为败方 1为中心点
+        /// </summary>
+        public LianjieParsingMethod LianjieParsingMethod { get; set; }
+
+        public PillarDrawingMethod PillarDrawingMethod { get; set; }
+
+        /// <summary>
+        /// 分割jw内绘制方式
+        /// </summary>
+        public PillarDrawingMethod SplitDrawingMethod { get; set; }
+
+        /// <summary>
+        /// 用来区分是否关东VPL 使用败方孔 不额外打孔 还是BR8使用胜方额外打孔
+        /// </summary>
+        public LianjieCompentType LianjieCompentType { get; set; }
+
+        public long? JwCustomerDataId { get; set; }
+        public virtual JwCustomerData? JwCustomerData { get; set; } = null!;
+
+    }
+}

@@ -9,7 +9,8 @@ namespace Jw.Application.Customers;
 
 public sealed record CustomerListItem(
     Guid Id, string CompanyName, string? Address, string? Contact, string? Telephone,
-    DateTime CreatedAt, string? CreatedByName, DateTime? ModifiedAt, string? ModifiedByName);
+    DateTime CreatedAt, string? CreatedByName, DateTime? ModifiedAt, string? ModifiedByName,
+    int ProjectCount = 0, bool HasParseSetting = false);
 
 public sealed class CustomerInput
 {
@@ -41,7 +42,8 @@ public sealed class CustomerService(IAppDbContextFactory dbFactory, ICurrentUser
                              || (c.Telephone != null && c.Telephone.Contains(keyword)));
         return await q.OrderBy(c => c.CompanyName)
             .Select(c => new CustomerListItem(c.Id, c.CompanyName, c.Address, c.Contact, c.Telephone,
-                c.CreatedAt, c.CreatedByName, c.ModifiedAt, c.ModifiedByName))
+                c.CreatedAt, c.CreatedByName, c.ModifiedAt, c.ModifiedByName,
+                db.Projects.Count(p => p.CustomerId == c.Id), c.ParseSetting != null))
             .ToListAsync(ct);
     }
 
@@ -98,6 +100,11 @@ public sealed class CustomerService(IAppDbContextFactory dbFactory, ICurrentUser
         await using var db = await dbFactory.CreateAsync(ct);
         var entity = await db.Customers.FirstOrDefaultAsync(c => c.Id == id, ct)
                      ?? throw new NotFoundException("顧客");
+        var projects = await db.Projects.CountAsync(p => p.CustomerId == id, ct);
+        if (projects > 0)
+            throw new AppException($"この顧客の工事が {projects} 件あるため削除できません。");
+        var setting = await db.CustomerParseSettings.FirstOrDefaultAsync(s => s.CustomerId == id, ct);
+        if (setting is not null) db.CustomerParseSettings.Remove(setting);
         db.Customers.Remove(entity); // 拦截器会转为软删除并记录审计
         await db.SaveChangesAsync(ct);
     }

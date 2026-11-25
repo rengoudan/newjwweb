@@ -1,0 +1,57 @@
+@using Jw.Application.Budgets
+@using Jw.Application.Projects
+@inject BudgetService Service
+@inject UiRunner Ui
+
+<MudDialog>
+    <DialogContent>
+        @if (_projects is null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (_projects.Count == 0)
+        {
+            <MudAlert Severity="Severity.Info" Dense="true">@L["予算のない工事がありません。先に工事を登録してください。"]</MudAlert>
+        }
+        else
+        {
+            <MudSelect T="Guid?" @bind-Value="_projectId" Label="@L["工事"]" Variant="Variant.Outlined" Margin="Margin.Dense"
+                       AnchorOrigin="Origin.BottomCenter" Required="true">
+                @foreach (var p in _projects)
+                {
+                    <MudSelectItem T="Guid?" Value="p.Id">@p.Name</MudSelectItem>
+                }
+            </MudSelect>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-3">
+                @L["空の予算を作成し、材料を選んで明細を追加します。図面解析結果からの自動作成は次の段階で公開します。"]
+            </MudText>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => MudDialog.Cancel()">@L["キャンセル"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_projectId is null || _saving" OnClick="CreateAsync">@L["作成"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private IReadOnlyList<LookupItem>? _projects;
+    private Guid? _projectId;
+    private bool _saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var ok = await Ui.RunAsync(async () => _projects = await Service.ProjectsWithoutBudgetAsync());
+        if (!ok) MudDialog.Cancel();
+    }
+
+    private async Task CreateAsync()
+    {
+        _saving = true;
+        Guid id = default;
+        var ok = await Ui.RunAsync(async () => id = await Service.CreateAsync(_projectId!.Value), L["予算を作成しました。"]);
+        _saving = false;
+        if (ok) MudDialog.Close(DialogResult.Ok(id));
+    }
+}

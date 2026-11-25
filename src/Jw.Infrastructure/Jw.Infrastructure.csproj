@@ -11,6 +11,20 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.15" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.15" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.15" />
+    <PackageReference Include="NPOI" Version="2.8.1" />
+    <!-- NPOI 2.8.1 が引く 10.0.10 には既知の脆弱性（GHSA-7hqp-7c5m-4vq6 ほか）があるため、修正版に固定 -->
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.15" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 见積書模板（拷贝自旧版 RGBJWMain/template.xlsx） -->
+    <EmbeddedResource Include="Templates\quotation-template.xlsx" LogicalName="Jw.Infrastructure.Templates.quotation-template.xlsx" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Jw.Tests" />
   </ItemGroup>
 
   <PropertyGroup>

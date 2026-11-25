@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- 解析・出力の回帰：用新版 Jw.Cad 处理样例图纸，导出与旧版基准相同格式的结果，再逐行/逐实体比对。 -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="JwwHelper">
+      <HintPath>..\..\native\JwwHelper\x64\Release\Output\JwwHelper.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Jw.Cad\Jw.Cad.csproj" />
+  </ItemGroup>
+</Project>

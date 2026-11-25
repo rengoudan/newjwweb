@@ -37,7 +37,10 @@ void CJwwWriter::WriteImages(CArchive& ar) {
 void CJwwWriter::InitHeader(LPCTSTR path) {
 	AFX_MANAGE_STATE(AfxGetStaticModuleState());
 	CFile file;
-	file.Open(path, CFile::modeRead);
+	// NewJwWeb: share read access (the default shareCompat is exclusive) and fail loudly instead of reading a closed file
+	CFileException openError;
+	if (!file.Open(path, CFile::modeRead | CFile::shareDenyWrite, &openError))
+		AfxThrowFileException(openError.m_cause, openError.m_lOsError, path);
 	CArchive ar(&file, CArchive::load);
 	BYTE buf[8];
 	ar.Read(buf, 8);

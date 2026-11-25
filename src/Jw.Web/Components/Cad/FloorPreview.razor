@@ -1,0 +1,138 @@
+@using System.Globalization
+@using Jw.Application.Floors
+@inject FloorSceneService Scenes
+@inject UiRunner Ui
+@inject IJSRuntime JS
+
+@* 図面プレビュー（SVG）。図面座標は Y 上向きなので、Y を反転して描く。ホイールで拡大、ドラッグで移動。 *@
+<div class="jw-preview">
+    <div class="jw-preview-tools">
+        <MudToggleIconButton @bind-Toggled="_showHoles" Icon="@Icons.Material.Outlined.Circle" ToggledIcon="@Icons.Material.Filled.Circle" Size="Size.Small" title="@L["穴"]" />
+        <MudToggleIconButton @bind-Toggled="_showLabels" Icon="@Icons.Material.Outlined.TextFields" ToggledIcon="@Icons.Material.Filled.TextFields" Size="Size.Small" title="@L["梁番号"]" />
+        <MudIconButton Icon="@Icons.Material.Outlined.CenterFocusStrong" Size="Size.Small" OnClick="ResetAsync" title="@L["全体表示"]" />
+        <span class="jw-sub ml-2">@L["ホイール：拡大縮小／ドラッグ：移動／梁をクリック：選択"]</span>
+        <MudSpacer />
+        <span class="jw-legend"><i class="jw-lg-beam"></i>@L["梁"] <i class="jw-lg-warn"></i>@L["要確認"] <i class="jw-lg-pillar"></i>@L["柱"] <i class="jw-lg-hole"></i>@L["穴"] <i class="jw-lg-b"></i>B <i class="jw-lg-bg"></i>BG <i class="jw-lg-brace"></i>@L["ブレース"]</span>
+    </div>
+    @if (_scene is null)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+    else
+    {
+        <svg @ref="_svg" class="jw-preview-svg" viewBox="@ViewBox" preserveAspectRatio="xMidYMid meet">
+            <g transform="scale(1,-1)">
+                @foreach (var r in _scene.Rects.Where(r => r.Kind == "pillar"))
+                {
+                    <rect x="@F(r.X)" y="@F(r.Y)" width="@F(r.W)" height="@F(r.H)" class="jw-sv-pillar" />
+                }
+                @foreach (var r in _scene.Rects.Where(r => r.Kind == "beam"))
+                {
+                    <rect x="@F(r.X)" y="@F(r.Y)" width="@F(Math.Max(r.W, _hair))" height="@F(Math.Max(r.H, _hair))"
+                          class="@BeamClass(r)" @onclick="() => Select(r)" />
+                }
+                @foreach (var l in _scene.Lines)
+                {
+                    <line x1="@F(l.X1)" y1="@F(l.Y1)" x2="@F(l.X2)" y2="@F(l.Y2)" class="jw-sv-brace" stroke-width="@F(_hair * 1.5)" />
+                }
+                @if (_showHoles)
+                {
+                    @foreach (var p in _scene.Points)
+                    {
+                        <circle cx="@F(p.X)" cy="@F(p.Y)" r="@F(p.Kind == "hole" ? _hair * 1.6 : _hair * 3)" class="@($"jw-sv-{p.Kind}")" />
+                    }
+                }
+            </g>
+            @if (_showLabels)
+            {
+                @foreach (var r in _scene.Rects.Where(r => r.Kind == "beam" && !string.IsNullOrEmpty(r.Label)))
+                {
+                    <g><text x="@F(r.X + r.W / 2)" y="@F(-(r.Y + r.H / 2))" font-size="@F(_font)" class="@(r.Id == _selected?.Id ? "jw-sv-label jw-sv-label-sel" : "jw-sv-label")"
+                          text-anchor="middle" dominant-baseline="middle">@r.Label</text></g>
+                }
+            }
+        </svg>
+        @if (_selected is not null)
+        {
+            <div class="jw-preview-info">
+                <b>@_selected.Label</b>
+                <span class="jw-sub">@L["長さ"] @((Math.Max(_selected.W, _selected.H) * _scene.Scale).ToString("#,0")) mm</span>
+                <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.ViewInAr" OnClick="() => OnShow3D.InvokeAsync(_selected.Id)">3D</MudButton>
+                @if (_selected.Warn)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text">@L["穴なし"]</MudChip>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Guid FloorId { get; set; }
+    /// <summary>梁がクリックされたとき（梁 ID）。</summary>
+    [Parameter] public EventCallback<string> OnBeamSelected { get; set; }
+    /// <summary>選択中の梁の 3D 表示（梁 ID）。</summary>
+    [Parameter] public EventCallback<string> OnShow3D { get; set; }
+
+    private FloorSceneData? _scene;
+    private ElementReference _svg;
+    private SceneRect? _selected;
+    private bool _showHoles = true;
+    private bool _showLabels = true;
+    private bool _attached;
+    private double _hair;
+    private double _font;
+
+    private string ViewBox
+    {
+        get
+        {
+            var s = _scene!;
+            var w = s.MaxX - s.MinX;
+            var h = s.MaxY - s.MinY;
+            var m = Math.Max(w, h) * 0.03;
+            return $"{F(s.MinX - m)} {F(-s.MaxY - m)} {F(w + 2 * m)} {F(h + 2 * m)}";
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _attached = false;
+        await Ui.RunAsync(async () => _scene = await Scenes.GetAsync(FloorId));
+        if (_scene is not null)
+        {
+            var size = Math.Max(_scene.MaxX - _scene.MinX, _scene.MaxY - _scene.MinY);
+            _hair = size / 900;
+            _font = size / 110;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_scene is not null && !_attached)
+        {
+            _attached = true;
+            await JS.InvokeVoidAsync("jwPanZoom.attach", _svg);
+        }
+    }
+
+    /// <summary>表の行から梁を選んだとき（外部から）。</summary>
+    public void Highlight(string beamId)
+    {
+        _selected = _scene?.Rects.FirstOrDefault(r => r.Id == beamId);
+        StateHasChanged();
+    }
+
+    private async Task Select(SceneRect r)
+    {
+        _selected = r;
+        await OnBeamSelected.InvokeAsync(r.Id);
+    }
+
+    private Task ResetAsync() => JS.InvokeVoidAsync("jwPanZoom.reset", _svg).AsTask();
+
+    private string BeamClass(SceneRect r) =>
+        "jw-sv-beam" + (r.Warn ? " jw-sv-warn" : "") + (r.Id == _selected?.Id ? " jw-sv-sel" : "");
+
+    private static string F(double v) => v.ToString("0.####", CultureInfo.InvariantCulture);
+}

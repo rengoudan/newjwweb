@@ -26,6 +26,15 @@ public static class DependencyInjection
         services.AddScoped<IAppDbContextFactory, AppDbContextFactory>();
 
         services.AddScoped<IAuditLogger, AuditLogger>();
+        services.AddSingleton<Jw.Application.Budgets.IQuotationExporter, Export.QuotationExporter>();
+
+        // 文件保存与图纸解析（后台任务）
+        services.AddOptions<Files.StorageOptions>().BindConfiguration("Storage");
+        services.AddOptions<Parsing.ParseOptionsConfig>().BindConfiguration("Parse");
+        services.AddSingleton<Jw.Application.Files.IFileStore, Files.LocalFileStore>();
+        services.AddSingleton<Parsing.ParseJobRunner>();
+        services.AddSingleton<Jw.Application.Floors.IParseJobs>(sp => sp.GetRequiredService<Parsing.ParseJobRunner>());
+        services.AddHostedService(sp => sp.GetRequiredService<Parsing.ParseJobRunner>());
         return services;
     }
 }

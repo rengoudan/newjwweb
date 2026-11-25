@@ -11,6 +11,7 @@ using Jw.Web.Shared;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server.Circuits;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
@@ -37,6 +38,14 @@ builder.Services.ConfigureApplicationCookie(o =>
     o.ExpireTimeSpan = TimeSpan.FromHours(12);
     o.SlidingExpiration = true;
 });
+// 登录 Cookie 的加密密钥。IIS 应用池回收、重新部署后密钥不能变，否则所有人都会被登出。
+// 生产环境配置 DataProtection:KeysPath（站点目录之外、应用池账号可写）。
+var dataProtection = builder.Services.AddDataProtection().SetApplicationName("NewJwWeb");
+if (builder.Configuration["DataProtection:KeysPath"] is { Length: > 0 } keysPath)
+{
+    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keysPath));
+    if (OperatingSystem.IsWindows()) dataProtection.ProtectKeysWithDpapi(); // 应用池账号的 DPAPI（需加载用户配置文件）
+}
 // 每次 HTTP 请求最多每分钟校验一次安全戳：被停用或权限变更后，旧登录会话会失效
 builder.Services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.FromMinutes(1));
 
@@ -84,6 +93,16 @@ var app = builder.Build();
 
 await DataSeeder.SeedAsync(app.Services);
 
+if (!app.Environment.IsDevelopment())
+{
+    // 上传的图纸放在站点目录里的话，重新部署（覆盖或清空发布目录）时会丢失
+    if (!Path.IsPathRooted(app.Configuration["Storage:Root"] ?? ""))
+        app.Logger.LogWarning("Storage:Root が相対パスです（{Root}）。再デプロイで図面ファイルが消えないよう、サイト外の絶対パスを設定してください。",
+            app.Configuration["Storage:Root"] ?? "App_Data/files");
+    if (string.IsNullOrEmpty(app.Configuration["DataProtection:KeysPath"]))
+        app.Logger.LogWarning("DataProtection:KeysPath が未設定です。IIS ではアプリケーションプールの「ユーザープロファイルの読み込み」を有効にしないと、再起動のたびに全員ログアウトされます。");
+}
+
 var culture = new CultureInfo(app.Configuration["App:Culture"] ?? "ja-JP");
 app.UseRequestLocalization(new RequestLocalizationOptions
 {
@@ -110,6 +129,7 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.MapAccountEndpoints();
+app.MapFileEndpoints();
 
 app.Run();
 

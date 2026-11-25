@@ -1,0 +1,77 @@
+@using Jw.Application.Materials
+@inject MaterialService Service
+@inject UiRunner Ui
+
+<MudDialog>
+    <DialogContent>
+        @if (_model is null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else
+        {
+            <EditForm id="material-form" Model="_model" OnValidSubmit="SaveAsync">
+                <DataAnnotationsValidator />
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="7">
+                        <MudTextField @bind-Value="_model.Name" For="() => _model.Name" Label="@L["材料名称"]" Required="true"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" AutoFocus="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="5">
+                        <MudTextField @bind-Value="_model.Spec" For="() => _model.Spec" Label="@L["仕様"]" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_model.GeneralTitle" For="() => _model.GeneralTitle" Label="@L["共通識別子"]"
+                                      HelperText="@L["図面の解析結果（B・BG・柱の記号など）と照合します。"]" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudNumericField T="double" @bind-Value="_model.NumParameter" Label="@L["数値パラメータ"]" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudNumericField T="decimal" @bind-Value="_model.UnitPrice" For="() => _model.UnitPrice" Label="@L["単価"]" Min="0"
+                                         Format="#,0.##" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudTextField @bind-Value="_model.UnitName" For="() => _model.UnitName" Label="@L["単位"]" Required="true"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_model.Remark" For="() => _model.Remark" Label="@L["摘要"]" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                </MudGrid>
+            </EditForm>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => MudDialog.Cancel()">@L["キャンセル"]</MudButton>
+        <MudButton ButtonType="ButtonType.Submit" form="material-form" Variant="Variant.Filled" Color="Color.Primary" Disabled="_saving || _model is null">@L["保存"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public Guid? MaterialId { get; set; }
+    [Parameter] public CategoryItem? Category { get; set; }
+
+    private MaterialInput? _model;
+    private bool _saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (MaterialId is null)
+        {
+            _model = new MaterialInput { CategoryId = Category!.Id };
+            return;
+        }
+        var ok = await Ui.RunAsync(async () => _model = await Service.GetMaterialForEditAsync(MaterialId.Value));
+        if (!ok) MudDialog.Cancel();
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        var ok = await Ui.RunAsync(() => Service.SaveMaterialAsync(_model!), L["保存しました。"]);
+        _saving = false;
+        if (ok) MudDialog.Close(DialogResult.Ok(true));
+    }
+}

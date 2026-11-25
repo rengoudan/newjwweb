@@ -1,0 +1,82 @@
+@page "/budgets"
+@attribute [Authorize(Policy = Permissions.Budget.View)]
+@using Jw.Application.Budgets
+@inject BudgetService Service
+@inject IDialogService Dialogs
+@inject UiRunner Ui
+@inject ICurrentUser CurrentUser
+@inject NavigationManager Nav
+
+<PageTitle>@L["予算"]</PageTitle>
+
+<PageHeader Title="@L["予算"]" Description="@L["工事ごとの予算と見積書を管理します。"]">
+    <Actions>
+        @if (CurrentUser.HasPermission(Permissions.Budget.Edit))
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="CreateAsync">@L["予算を作成"]</MudButton>
+        }
+    </Actions>
+</PageHeader>
+
+<MudPaper Class="jw-card" Elevation="0">
+    <div class="jw-toolbar">
+        <MudTextField @bind-Value="_keyword" Placeholder="@L["工事名で検索"]" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="300"
+                      OnDebounceIntervalElapsed="LoadAsync" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"
+                      OnClearButtonClick="LoadAsync" Class="jw-search" />
+        <MudSpacer />
+        <MudText Typo="Typo.body2" Color="Color.Secondary">@L["件数"]: @_items.Count</MudText>
+    </div>
+    <MudTable Items="_items" Hover="true" Dense="true" Loading="_loading" Elevation="0" Class="jw-table" RowsPerPage="50"
+              OnRowClick="(TableRowClickEventArgs<BudgetListItem> e) => Open(e.Item!)" RowClass="jw-clickable">
+        <HeaderContent>
+            <MudTh>@L["工事名"]</MudTh>
+            <MudTh>@L["顧客"]</MudTh>
+            <MudTh Style="text-align:right">@L["明細数"]</MudTh>
+            <MudTh Style="text-align:right">@L["金額（税抜）"]</MudTh>
+            <MudTh>@L["最終更新"]</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd><b>@context.ProjectName</b></MudTd>
+            <MudTd>@context.CustomerName</MudTd>
+            <MudTd Style="text-align:right">@context.LineCount</MudTd>
+            <MudTd Style="text-align:right"><b>@Money(context.Amount)</b></MudTd>
+            <MudTd>
+                <div>@TimeDisplay.Format(context.ModifiedAt ?? context.CreatedAt)</div>
+                <div class="jw-sub">@(context.ModifiedByName ?? context.CreatedByName)</div>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <div class="jw-empty-inline">@L["予算がありません。"]</div>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager HideRowsPerPage="true" />
+        </PagerContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private IReadOnlyList<BudgetListItem> _items = [];
+    private string? _keyword;
+    private bool _loading = true;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        await Ui.RunAsync(async () => _items = await Service.ListAsync(_keyword));
+        _loading = false;
+    }
+
+    private async Task CreateAsync()
+    {
+        var dialog = await Dialogs.ShowAsync<CreateBudgetDialog>(L["予算を作成"]);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: Guid id }) Nav.NavigateTo($"/budgets/{id}");
+    }
+
+    private void Open(BudgetListItem item) => Nav.NavigateTo("/budgets/" + item.Id);
+
+    internal static string Money(decimal v) => "¥" + v.ToString("#,0.##");
+}

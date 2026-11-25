@@ -11,5 +11,8 @@ public class Customer : AuditedEntity, IAuditable
     public string? Telephone { get; set; }
     public string? Note { get; set; }
 
+    /// <summary>図面解析設定（没有设定时为 null）。</summary>
+    public CustomerParseSetting? ParseSetting { get; set; }
+
     public string AuditDisplay => CompanyName;
 }

@@ -1,0 +1,259 @@
+@using Jw.Application.Customers
+@using Jw.Application.Floors
+@using Jw.Domain.Common
+@using JwCore
+@using Microsoft.AspNetCore.Components.Forms
+@implements IDisposable
+@inject FloorImportService Service
+@inject UiRunner Ui
+
+<MudDialog>
+    <DialogContent>
+        @if (_ctx is null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (_ctx.BlockedReason is not null)
+        {
+            <MudAlert Severity="Severity.Warning">@_ctx.BlockedReason</MudAlert>
+        }
+        else if (_job is null)
+        {
+            @* ① ファイル選択と取り込み設定 *@
+            <MudStack Spacing="3">
+                <div class="jw-upload">
+                    <MudFileUpload T="IBrowserFile" FilesChanged="OnFileAsync" Accept=".jww" Disabled="_uploading">
+                        <CustomContent>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.UploadFile"
+                                       OnClick="@context.OpenFilePickerAsync" Disabled="_uploading">@L["図面ファイル（.jww）を選択"]</MudButton>
+                        </CustomContent>
+                    </MudFileUpload>
+                    @if (_uploading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                    }
+                    else if (_file is not null)
+                    {
+                        <span class="jw-upload-file"><MudIcon Icon="@Icons.Material.Outlined.Description" Size="Size.Small" /> @_file.FileName <span class="jw-sub">（@((_file.Size / 1024.0).ToString("#,0")) KB）</span></span>
+                    }
+                </div>
+
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_input.FloorName" Label="@L["階名"]" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      HelperText="@(_ctx.ExistingFloors.Count > 0 ? L["取り込み済み："] + string.Join("・", _ctx.ExistingFloors) : null)" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudSelect T="KPillarType" @bind-Value="_input.KPillarType" Label="@L["K 柱種別"]" Variant="Variant.Outlined" Margin="Margin.Dense">
+                            <MudSelectItem T="KPillarType" Value="KPillarType.A900">900</MudSelectItem>
+                            <MudSelectItem T="KPillarType" Value="KPillarType.A910">910</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <PenSelect Kind="PenSelect.PenKind.Color" @bind-Value="_input.ExtraHoleColor" Label="@L["追加の穴の線色"]" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudNumericField T="double" @bind-Value="_input.BeamScopeOffset" Label="@L["梁の識別範囲の補正"]" Min="-100" Max="100"
+                                         Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudSelect T="Guid?" @bind-Value="_input.BeamMaterialId" Label="@L["梁の材料（予算の自動作成に使用）"]" Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" Clearable="true" AnchorOrigin="Origin.BottomCenter"
+                                   HelperText="@(_ctx.BeamMaterials.Count == 0 ? L["基礎データに梁の材料がありません。"].Value : null)">
+                            @foreach (var m in _ctx.BeamMaterials)
+                            {
+                                <MudSelectItem T="Guid?" Value="m.Id">@m.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudSwitch T="bool" @bind-Value="_input.MinimalStrategy" Color="Color.Primary" Label="@L["穴あけ方式：最少打孔"]" />
+                        <MudSwitch T="bool" @bind-Value="_input.ExcludeDegenerateRectangles" Color="Color.Primary"
+                                   Label="@L["面積 0 の候補矩形を除外する（推奨）"]" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudExpansionPanels Elevation="0" Outlined="true" Dense="true">
+                    <MudExpansionPanel Text="@string.Format(L["顧客「{0}」の解析設定"], _ctx.CustomerName)">
+                        <SettingSummary Setting="_ctx.CustomerSettings!" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@L["変更する場合は顧客画面の「解析設定」から行ってください。"]</MudText>
+                    </MudExpansionPanel>
+                </MudExpansionPanels>
+            </MudStack>
+        }
+        else
+        {
+            @* ② 解析の進行と結果 *@
+            <div class="jw-parse-head">
+                <b>@_job.FileName</b> <span class="jw-sub">→ @_job.FloorName</span>
+                <MudSpacer />
+                <JobStatusChip Status="_job.Status" />
+            </div>
+            <div class="jw-steps-list">
+                @foreach (var s in _job.Steps.OrderBy(s => s.Index))
+                {
+                    <div class="jw-step-line @(s.Status == "Failed" ? "jw-step-failed" : null)">
+                        <MudIcon Size="Size.Small" Icon="@StepIcon(s.Status)" Color="@StepColor(s.Status)" />
+                        <span class="jw-step-name">@s.StepName</span>
+                        <span class="jw-sub">@(s.Summary)</span>
+                        <MudSpacer />
+                        @if (s.ElapsedMs > 0)
+                        {
+                            <span class="jw-sub">@(s.ElapsedMs.ToString("#,0")) ms</span>
+                        }
+                    </div>
+                }
+                @if (_job.Status is ParseJobStatus.Queued)
+                {
+                    <div class="jw-sub">@L["解析の順番を待っています…"]</div>
+                }
+            </div>
+
+            @if (_job.Status == ParseJobStatus.Failed)
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-3">@_job.Error</MudAlert>
+            }
+            @if (_job.Result is { } r)
+            {
+                <div class="jw-stat-row mt-3">
+                    <div class="jw-stat"><span>@L["梁数"]</span><b>@r.Beams.Count</b></div>
+                    <div class="jw-stat"><span>@L["柱"]</span><b>@r.Pillars.Count</b></div>
+                    <div class="jw-stat"><span>@L["穴"]</span><b>@r.Holes.Count</b></div>
+                    <div class="jw-stat"><span>B / BG</span><b>@r.Floor.BCount / @r.Floor.BGCount</b></div>
+                    <div class="jw-stat"><span>@L["ブレース"]</span><b>@r.Lianjies.Count</b></div>
+                </div>
+                @foreach (var w in r.Warnings)
+                {
+                    <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2">@w</MudAlert>
+                }
+                @if (r.SuppressedErrors.Count > 0)
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
+                        @L["一部の図形は解析できずに読み飛ばしました："] @string.Join("・", r.SuppressedErrors.Select(kv => $"{kv.Key} {kv.Value}件"))
+                    </MudAlert>
+                }
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-3">
+                    @string.Format(L["解析時間 {0} 秒。内容を確認して「保存」を押すと階として登録されます。"], (r.ElapsedMs / 1000.0).ToString("0.0"))
+                </MudText>
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        @if (_job is null)
+        {
+            <MudButton OnClick="() => MudDialog.Cancel()">@L["キャンセル"]</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow"
+                       Disabled="@(_file is null || _ctx?.BlockedReason is not null || string.IsNullOrWhiteSpace(_input.FloorName) || _busy)"
+                       OnClick="StartAsync">@L["解析を開始"]</MudButton>
+        }
+        else if (_job.Status is ParseJobStatus.Succeeded)
+        {
+            <MudButton OnClick="Discard">@L["破棄"]</MudButton>
+            <MudButton Variant="Variant.Outlined" OnClick="Retry">@L["設定を変えて再解析"]</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" Disabled="_busy" OnClick="SaveAsync">@L["保存"]</MudButton>
+        }
+        else if (_job.Status is ParseJobStatus.Failed)
+        {
+            <MudButton OnClick="Discard">@L["閉じる"]</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Retry">@L["設定を変えて再解析"]</MudButton>
+        }
+        else
+        {
+            <MudButton OnClick="Discard">@L["中止"]</MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public Guid ProjectId { get; set; }
+
+    private ImportContext? _ctx;
+    private ImportInput _input = new();
+    private UploadedFile? _file;
+    private ParseJob? _job;
+    private bool _uploading;
+    private bool _busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var ok = await Ui.RunAsync(async () => _ctx = await Service.PrepareAsync(ProjectId));
+        if (!ok) { MudDialog.Cancel(); return; }
+        _input = new ImportInput { ProjectId = ProjectId, FloorName = _ctx!.SuggestedFloorName, BeamMaterialId = _ctx.DefaultBeamMaterialId };
+    }
+
+    private async Task OnFileAsync(IBrowserFile file)
+    {
+        _uploading = true;
+        StateHasChanged();
+        await Ui.RunAsync(async () =>
+        {
+            await using var stream = file.OpenReadStream(FloorImportService.MaxFileSize);
+            _file = await Service.UploadAsync(stream, file.Name);
+        });
+        _uploading = false;
+    }
+
+    private async Task StartAsync()
+    {
+        _busy = true;
+        _input.FileId = _file!.Id;
+        Guid id = default;
+        if (await Ui.RunAsync(async () => id = await Service.StartAsync(_input)))
+        {
+            _job = Service.GetJob(id);
+            _job.Changed += OnJobChanged;
+        }
+        _busy = false;
+    }
+
+    private void OnJobChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task SaveAsync()
+    {
+        _busy = true;
+        Guid floorId = default;
+        var ok = await Ui.RunAsync(async () => floorId = await Service.SaveAsync(_job!.Id), L["階を登録しました。"]);
+        _busy = false;
+        if (ok) { Detach(); MudDialog.Close(DialogResult.Ok(floorId)); }
+    }
+
+    private void Retry()
+    {
+        if (_job is not null) Service.Discard(_job.Id);
+        Detach();
+        _job = null;
+    }
+
+    private void Discard()
+    {
+        if (_job is not null) Service.Discard(_job.Id);
+        Detach();
+        MudDialog.Cancel();
+    }
+
+    private void Detach()
+    {
+        if (_job is not null) _job.Changed -= OnJobChanged;
+    }
+
+    public void Dispose() => Detach();
+
+    private static string StepIcon(string status) => status switch
+    {
+        "Done" => Icons.Material.Filled.CheckCircle,
+        "Warning" => Icons.Material.Filled.Warning,
+        "Failed" => Icons.Material.Filled.Error,
+        "Running" => Icons.Material.Outlined.Autorenew,
+        _ => Icons.Material.Outlined.Circle,
+    };
+
+    private static Color StepColor(string status) => status switch
+    {
+        "Done" => Color.Success,
+        "Warning" => Color.Warning,
+        "Failed" => Color.Error,
+        "Running" => Color.Primary,
+        _ => Color.Default,
+    };
+}

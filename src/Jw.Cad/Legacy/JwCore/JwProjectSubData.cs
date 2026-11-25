@@ -1,0 +1,81 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace JwCore
+{
+    public class JwProjectSubData: JwSquareBaseData
+    {
+        public virtual string? FloorName { get; set; }
+
+        public virtual int BeamCount { get; set; }
+
+        public virtual int HorizontalBeamsCount { get; set; }
+
+        public virtual int VerticalBeamsCount { get; set; }
+
+        public virtual string? Biaochi { get; set; }
+
+        /// <summary>
+        /// 梁符号
+        /// </summary>
+        public virtual int? MarkBeam { get; set; }
+
+        public virtual int PillarCount { get; set; }
+
+        public virtual int KPillarCount { get; set; }
+
+        public virtual int SinglePillarCount { get; set; }
+
+        public virtual int BCount { get; set; }
+
+        public virtual int BGCount { get; set; }
+
+        /// <summary>
+        /// 默认梁的 型号
+        /// </summary>
+        public virtual string DefaultBeamXHId { get; set; } = string.Empty;
+
+        public virtual string DefaultBeamXHName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// 导出次数
+        /// </summary>
+        public virtual int ExportCount { get; set; }
+
+        /// <summary>
+        /// 2026年4月17日 默认同一楼层为同一类型柱子
+        /// </summary>
+        public virtual KPillarType KPillarType { get; set; }
+
+        public long JwProjectMainDataId { get; set; }
+
+        /// <summary>
+        /// 2026年8月27日 最小打孔策略
+        /// </summary>
+        public bool MinimalStrategy { get; set; } = false;
+
+        /// <summary>
+        /// 2026年8月27日 链接类型 BR8 VPL
+        /// </summary>
+        public LianjieCompentType LianjieCompentType { get; set; }
+
+        public virtual JwProjectMainData JwProjectMainData { get; set; } = null!;
+
+        public virtual List<JwBeamData> JwBeamDatas { get; } = new();
+
+        public virtual List<JwPillarData> JwPillarDatas { get; } = new();
+
+        public virtual List<JwLinkPartData> JwLinkPartDatas { get; } = new();
+
+        public virtual List<JwLianjieData> JwLianjieDatas { get; } = new();
+
+        public virtual List<JwDownPillarData> JwDownPillarDatas { get; } = new();
+
+        public virtual List<JwCutting> JwCuttings { get; } = new();
+
+        public virtual List<JwAddedHoleMarkData> JwAddedHoles { get; } = new();
+    }
+}

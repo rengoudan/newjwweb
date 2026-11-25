@@ -1,0 +1,256 @@
+@page "/floors/{Id:guid}"
+@attribute [Authorize(Policy = Permissions.Projects.View)]
+@using Jw.Application.Floors
+@using JwCore
+@inject FloorService Service
+@inject IDialogService Dialogs
+@inject UiRunner Ui
+@inject ICurrentUser CurrentUser
+@inject NavigationManager Nav
+@inject ExportService Exports
+@inject IJSRuntime JS
+@using Jw.Cad.Export
+
+<PageTitle>@(_wb is null ? L["階"] : $"{_wb.ProjectName} {_wb.Name}")</PageTitle>
+
+<MudBreadcrumbs Items="_crumbs" Class="px-0 pt-0 pb-2" />
+
+@if (_wb is null)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <PageHeader Title="@($"{_wb.Name}")" Description="@string.Format(L["{0}・縮尺 1/{1}・{2} 取り込み（{3}）"], _wb.ProjectName, _wb.ScaleText, TimeDisplay.Format(_wb.CreatedAt), _wb.CreatedByName)">
+        <Actions>
+            @if (CurrentUser.HasPermission(Permissions.Projects.Export))
+            {
+                <MudMenu Label="@L["出力"]" StartIcon="@Icons.Material.Outlined.Download" EndIcon="@Icons.Material.Filled.ArrowDropDown"
+                         Variant="Variant.Filled" Color="Color.Primary" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Disabled="_exporting">
+                    @foreach (var kind in Enum.GetValues<FloorExportKind>())
+                    {
+                        <MudMenuItem OnClick="() => ExportAsync(kind)" Disabled="@(kind == FloorExportKind.BracePlan && _wb.Lianjies.Count == 0)">@L[ExportService.KindName(kind)]</MudMenuItem>
+                    }
+                </MudMenu>
+            }
+            @if (_wb.FileId is not null)
+            {
+                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.FileDownload" Href="@($"/files/{_wb.FileId}")" Target="_blank">@L["元の図面"]</MudButton>
+            }
+            @if (CurrentUser.HasPermission(Permissions.Projects.Delete))
+            {
+                <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Outlined.Delete" OnClick="DeleteAsync">@L["階を削除"]</MudButton>
+            }
+        </Actions>
+    </PageHeader>
+
+    @if (_wb.Check.NeedsCheck)
+    {
+        <MudAlert Severity="Severity.Warning" Class="mb-3">@L["要確認"]：@_wb.Check.Reason</MudAlert>
+    }
+    @foreach (var w in _wb.Warnings)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">@w</MudAlert>
+    }
+
+    <div class="jw-stat-row mb-3">
+        <div class="jw-stat"><span>@L["梁数"]</span><b>@_wb.Beams.Count</b></div>
+        <div class="jw-stat"><span>@L["柱"]</span><b>@_wb.Pillars.Count</b></div>
+        <div class="jw-stat"><span>@L["穴"]</span><b>@_wb.Beams.Sum(b => b.HoleCount)</b></div>
+        <div class="jw-stat"><span>B / BG</span><b>@_wb.LinkParts.Count(l => l.Type == GouJianType.B) / @_wb.LinkParts.Count(l => l.Type == GouJianType.BG)</b></div>
+        <div class="jw-stat"><span>@L["ブレース"]</span><b>@_wb.Lianjies.Count</b></div>
+    </div>
+
+    <MudPaper Class="jw-card" Elevation="0">
+        <MudTabs Elevation="0" ApplyEffectsToContainer="true" TabPanelsClass="pa-0" Border="false">
+            <MudTabPanel Text="@L["図面"]">
+                <FloorPreview @ref="_preview" FloorId="Id" OnBeamSelected="OnBeamSelected" OnShow3D="Show3DAsync" />
+            </MudTabPanel>
+            <MudTabPanel Text="@($"{L["梁"]} ({_wb.Beams.Count})")">
+                <div class="jw-toolbar">
+                    <MudTextField @bind-Value="_beamFilter" Placeholder="@L["梁番号で絞り込み"]" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Class="jw-search" />
+                    <MudSwitch T="bool" @bind-Value="_onlyCheck" Color="Color.Warning" Label="@L["要確認（穴なし）のみ"]" Class="ml-3" />
+                </div>
+                <MudTable Items="Beams" Dense="true" Hover="true" Elevation="0" Class="jw-table" RowsPerPage="100" HorizontalScrollbar="true"
+                          RowClassFunc="@((b, _) => b.HoleCount == 0 ? "jw-row-warn" : null)">
+                    <HeaderContent>
+                        <MudTh>@L["梁番号"]</MudTh>
+                        <MudTh>@L["元番号"]</MudTh>
+                        <MudTh>@L["工区"]</MudTh>
+                        <MudTh>@L["方向"]</MudTh>
+                        <MudTh Style="text-align:right">@L["長さ（mm）"]</MudTh>
+                        <MudTh>@L["端部"]</MudTh>
+                        <MudTh Style="text-align:right">@L["穴"]</MudTh>
+                        <MudTh>CSV</MudTh>
+                        <MudTh Style="width:1%"></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd><b>@context.BeamCode</b>@if (context.IsQiegeBeam) { <span class="jw-sub"> @L["（切断）"]</span> }</MudTd>
+                        <MudTd class="jw-sub">@context.InitialBeamCode</MudTd>
+                        <MudTd>@context.GongQu</MudTd>
+                        <MudTd>@DirectionName(context.Direction)</MudTd>
+                        <MudTd Style="text-align:right">@context.Length.ToString("#,0.#")</MudTd>
+                        <MudTd>@context.StartType / @context.EndType</MudTd>
+                        <MudTd Style="text-align:right">
+                            @if (context.HoleCount == 0)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text">@L["穴なし"]</MudChip>
+                            }
+                            else
+                            {
+                                @context.HoleCount
+                            }
+                        </MudTd>
+                        <MudTd>@(context.HasCsv ? "○" : "—")</MudTd>
+                        <MudTd Class="jw-row-actions">
+                            <MudIconButton Icon="@Icons.Material.Outlined.ViewInAr" Size="Size.Small" OnClick="() => Show3DAsync(context.Id)" title="3D" />
+                            @if (CurrentUser.HasPermission(Permissions.Projects.Edit))
+                            {
+                                <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditBeamAsync(context)" />
+                            }
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent><div class="jw-empty-inline">@L["該当する梁がありません。"]</div></NoRecordsContent>
+                    <PagerContent><MudTablePager HideRowsPerPage="true" /></PagerContent>
+                </MudTable>
+            </MudTabPanel>
+            <MudTabPanel Text="@($"{L["柱"]} ({_wb.Pillars.Count})")">
+                <MudTable Items="_wb.Pillars" Dense="true" Hover="true" Elevation="0" Class="jw-table" RowsPerPage="100">
+                    <HeaderContent>
+                        <MudTh>@L["柱番号"]</MudTh><MudTh>@L["種別"]</MudTh><MudTh>@L["記号"]</MudTh><MudTh>@L["位置"]</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd><b>@context.PillarCode</b></MudTd>
+                        <MudTd>@(context.BaseType == PillarBaseType.KPillar ? L["K柱"] : context.BaseType == PillarBaseType.SinglePillar ? L["単柱"] : "—")</MudTd>
+                        <MudTd>@context.TaggTitle</MudTd>
+                        <MudTd class="jw-sub">@context.X.ToString("0.##"), @context.Y.ToString("0.##")</MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent><div class="jw-empty-inline">@L["柱がありません。解析設定（柱の線色・識別方法）を確認してください。"]</div></NoRecordsContent>
+                    <PagerContent><MudTablePager HideRowsPerPage="true" /></PagerContent>
+                </MudTable>
+            </MudTabPanel>
+            <MudTabPanel Text="@($"{L["金物"]} ({_wb.LinkParts.Count})")">
+                <MudTable Items="_wb.LinkParts" Dense="true" Hover="true" Elevation="0" Class="jw-table" RowsPerPage="100">
+                    <HeaderContent>
+                        <MudTh>@L["種別"]</MudTh><MudTh>@L["名称"]</MudTh><MudTh>@L["梁"]</MudTh><MudTh>@L["位置"]</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd><b>@context.Type</b></MudTd>
+                        <MudTd>@context.BujianName</MudTd>
+                        <MudTd>@(context.IsNoBeam ? L["梁なし"] : BeamCodeOf(context.BeamId))</MudTd>
+                        <MudTd class="jw-sub">@context.X.ToString("0.##"), @context.Y.ToString("0.##")</MudTd>
+                    </RowTemplate>
+                    <PagerContent><MudTablePager HideRowsPerPage="true" /></PagerContent>
+                </MudTable>
+            </MudTabPanel>
+            <MudTabPanel Text="@($"{L["ブレース"]} ({_wb.Lianjies.Count})")">
+                <MudTable Items="_wb.Lianjies" Dense="true" Hover="true" Elevation="0" Class="jw-table" RowsPerPage="100">
+                    <HeaderContent>
+                        <MudTh Style="text-align:right">@L["長さ"]</MudTh><MudTh>@L["始点"]</MudTh><MudTh>@L["終点"]</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd Style="text-align:right">@context.Length.ToString("#,0.#")</MudTd>
+                        <MudTd class="jw-sub">@context.StartX.ToString("0.##"), @context.StartY.ToString("0.##")</MudTd>
+                        <MudTd class="jw-sub">@context.EndX.ToString("0.##"), @context.EndY.ToString("0.##")</MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent><div class="jw-empty-inline">@L["ブレースはありません。"]</div></NoRecordsContent>
+                    <PagerContent><MudTablePager HideRowsPerPage="true" /></PagerContent>
+                </MudTable>
+            </MudTabPanel>
+            <MudTabPanel Text="@L["解析情報"]">
+                <div class="pa-4">
+                    <dl class="jw-props">
+                        <dt>@L["図面ファイル"]</dt><dd>@_wb.FileName</dd>
+                        <dt>@L["解析時間"]</dt><dd>@((_wb.ParseElapsedMs / 1000.0).ToString("0.0")) s</dd>
+                        <dt>@L["K 柱種別"]</dt><dd>@_wb.KPillarType</dd>
+                        <dt>@L["ブレース部材"]</dt><dd>@(_wb.BraceComponent == 1 ? "VPL" : "BR8")</dd>
+                        <dt>@L["穴あけ方式"]</dt><dd>@(_wb.MinimalStrategy ? L["最少打孔"] : L["標準"])</dd>
+                        <dt>@L["出力回数"]</dt><dd>@_wb.ExportCount</dd>
+                    </dl>
+                    @if (!string.IsNullOrEmpty(_wb.ParseOptionsJson))
+                    {
+                        <MudText Typo="Typo.subtitle2" Class="mt-4 mb-1">@L["解析に使った設定"]</MudText>
+                        <pre class="jw-detail-json">@_wb.ParseOptionsJson</pre>
+                    }
+                </div>
+            </MudTabPanel>
+        </MudTabs>
+    </MudPaper>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private Jw.Application.Floors.FloorWorkbench? _wb;
+    private List<BreadcrumbItem> _crumbs = [];
+    private string? _beamFilter;
+    private bool _onlyCheck;
+    private Dictionary<string, string> _beamCodes = [];
+
+    private IEnumerable<BeamRow> Beams => _wb!.Beams
+        .Where(b => !_onlyCheck || b.HoleCount == 0)
+        .Where(b => string.IsNullOrWhiteSpace(_beamFilter) || b.BeamCode.Contains(_beamFilter, StringComparison.OrdinalIgnoreCase));
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var ok = await Ui.RunAsync(async () => _wb = await Service.GetWorkbenchAsync(Id));
+        if (!ok) { Nav.NavigateTo("/projects"); return; }
+        _beamCodes = _wb!.Beams.ToDictionary(b => b.Id, b => b.BeamCode);
+        _crumbs = [new(L["工事一覧"], "/projects"), new(_wb.ProjectName, $"/projects/{_wb.ProjectId}"), new(_wb.Name, null, disabled: true)];
+    }
+
+    private string BeamCodeOf(string? beamId) => beamId is not null && _beamCodes.TryGetValue(beamId, out var c) ? c : "—";
+
+    private string DirectionName(BeamDirectionType d) => d switch
+    {
+        BeamDirectionType.Horizontal => L["横"],
+        BeamDirectionType.Vertical => L["縦"],
+        _ => L["斜め"],
+    };
+
+    private async Task EditBeamAsync(BeamRow beam)
+    {
+        var parameters = new DialogParameters<BeamDialog> { { x => x.Beam, beam } };
+        var dialog = await Dialogs.ShowAsync<BeamDialog>(string.Format(L["梁「{0}」を編集"], beam.BeamCode), parameters);
+        if (await dialog.Result is { Canceled: false }) await LoadAsync();
+    }
+
+    private async Task Show3DAsync(string beamId)
+    {
+        var code = _wb?.Beams.FirstOrDefault(b => b.Id == beamId)?.BeamCode;
+        var parameters = new DialogParameters<Beam3DDialog> { { x => x.FloorId, Id }, { x => x.BeamId, beamId } };
+        await Dialogs.ShowAsync<Beam3DDialog>(string.Format(L["梁「{0}」の 3D"], code), parameters,
+            new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true, CloseButton = true });
+    }
+
+    private FloorPreview? _preview;
+    private bool _exporting;
+
+    private void OnBeamSelected(string beamId) => _beamFilter = _wb?.Beams.FirstOrDefault(b => b.Id == beamId)?.BeamCode;
+
+    private async Task ExportAsync(FloorExportKind kind)
+    {
+        _exporting = true;
+        Jw.Application.Budgets.ExportedFile? file = null;
+        if (await Ui.RunAsync(async () => file = await Exports.ExportFloorAsync(Id, kind), L["出力しました。"]))
+        {
+            using var stream = new MemoryStream(file!.Content);
+            using var streamRef = new DotNetStreamReference(stream);
+            await JS.InvokeVoidAsync("jwDownload", file.FileName, streamRef);
+            if (kind == FloorExportKind.BeamCsv) await LoadAsync();
+        }
+        _exporting = false;
+    }
+
+    private async Task DeleteAsync()
+    {
+        var ok = await Dialogs.ShowMessageBoxAsync(L["削除の確認"],
+            string.Format(L["階「{0}」を削除しますか？工事の集計も更新されます。元の図面ファイルは残ります。"], _wb!.Name),
+            yesText: L["削除する"], cancelText: L["キャンセル"]);
+        if (ok != true) return;
+        if (await Ui.RunAsync(() => Service.DeleteAsync(Id), L["削除しました。"])) Nav.NavigateTo($"/projects/{_wb.ProjectId}");
+    }
+}

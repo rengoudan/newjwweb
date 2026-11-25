@@ -1,0 +1,231 @@
+@page "/projects/{Id:guid}"
+@attribute [Authorize(Policy = Permissions.Projects.View)]
+@using Jw.Application.Budgets
+@using Jw.Application.Projects
+@inject ProjectService Service
+@inject BudgetService Budgets
+@inject Jw.Application.Floors.FloorService Floors
+@inject IDialogService Dialogs
+@inject UiRunner Ui
+@inject ICurrentUser CurrentUser
+@inject NavigationManager Nav
+@inject Jw.Application.Floors.ExportService Exports
+@inject IJSRuntime JS
+
+<PageTitle>@(_project?.Name ?? L["工事"])</PageTitle>
+
+<MudBreadcrumbs Items="_crumbs" Class="px-0 pt-0 pb-2" />
+
+@if (_project is null)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <PageHeader Title="@_project.Name" Description="@_project.SiteAddress">
+        <Actions>
+            @if (CurrentUser.HasPermission(Permissions.Admin.Audit))
+            {
+                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.History" OnClick="HistoryAsync">@L["変更履歴"]</MudButton>
+            }
+            @if (CurrentUser.HasPermission(Permissions.Projects.Edit))
+            {
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Edit" OnClick="EditAsync">@L["編集"]</MudButton>
+            }
+            @if (CurrentUser.HasPermission(Permissions.Projects.Delete))
+            {
+                <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Outlined.Delete" OnClick="DeleteAsync">@L["削除"]</MudButton>
+            }
+        </Actions>
+    </PageHeader>
+
+    <MudGrid Spacing="3">
+        <MudItem xs="12" md="4">
+            <MudPaper Class="jw-card pa-5" Elevation="0">
+                <MudText Typo="Typo.h6" Class="mb-3">@L["概要"]</MudText>
+                <dl class="jw-props">
+                    <dt>@L["顧客"]</dt><dd>@(_project.CustomerName ?? "—")</dd>
+                    <dt>@L["状態"]</dt><dd><ProjectStatusChip Status="_project.Status" /></dd>
+                    <dt>@L["階数"]</dt><dd>@_project.ParsedQuantity / @_project.FloorQuantity @L["階（解析済み / 計画）"]</dd>
+                    <dt>@L["縮尺"]</dt><dd>@(_project.Scale ?? "—")</dd>
+                    <dt>@L["登録"]</dt><dd>@TimeDisplay.Format(_project.CreatedAt) ・ @_project.CreatedByName</dd>
+                    @if (_project.ModifiedAt is not null)
+                    {
+                        <dt>@L["最終更新"]</dt><dd>@TimeDisplay.Format(_project.ModifiedAt) ・ @_project.ModifiedByName</dd>
+                    }
+                </dl>
+            </MudPaper>
+
+            <MudPaper Class="jw-card pa-5 mt-3" Elevation="0">
+                <MudText Typo="Typo.h6" Class="mb-3">@L["予算"]</MudText>
+                <MudStack Spacing="2">
+                    @if (_budgetId is not null)
+                    {
+                        <MudButton Href="@($"/budgets/{_budgetId}")" Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                                   StartIcon="@Icons.Material.Outlined.Calculate">@L["予算を開く"]</MudButton>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">@L["この工事の予算はまだありません。"]</MudText>
+                    }
+                    @if (CurrentUser.HasPermission(Permissions.Budget.Edit))
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" StartIcon="@Icons.Material.Outlined.AutoAwesome"
+                                   Disabled="@(_floors.Count == 0)" OnClick="GenerateBudgetAsync">
+                            @(_budgetId is null ? L["解析結果から予算を作成"] : L["解析結果から予算を再作成"])
+                        </MudButton>
+                        @if (_budgetId is null)
+                        {
+                            <MudButton Variant="Variant.Text" Size="Size.Small" FullWidth="true" OnClick="CreateBudgetAsync">@L["空の予算を作成"]</MudButton>
+                        }
+                    }
+                </MudStack>
+            </MudPaper>
+
+            <MudPaper Class="jw-card pa-5 mt-3" Elevation="0">
+                <MudText Typo="Typo.h6" Class="mb-3">@L["出力"]</MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" StartIcon="@Icons.Material.Outlined.FolderZip"
+                           Disabled="@(_floors.Count == 0 || _exporting || !CurrentUser.HasPermission(Permissions.Projects.Export))"
+                           OnClick="ExportAllAsync">@L["一括出力（全階・zip）"]</MudButton>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">@L["梁JW図・番付図（上下）・ブレース施工図・梁製造CSV をまとめて出力します。"]</MudText>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="8">
+            <MudPaper Class="jw-card pa-5" Elevation="0">
+                <div class="d-flex align-center mb-3">
+                    <MudText Typo="Typo.h6">@L["階"]</MudText>
+                    <MudSpacer />
+                    @if (CurrentUser.HasPermission(Permissions.Projects.Import))
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.UploadFile"
+                                   Disabled="@(_project.ParsedQuantity >= _project.FloorQuantity)" OnClick="ImportAsync">@L["図面を取り込む"]</MudButton>
+                    }
+                </div>
+                <div class="jw-floor-grid">
+                    @foreach (var f in _floors)
+                    {
+                        <a class="jw-floor jw-floor-link @(f.Check.NeedsCheck ? "jw-floor-check" : "jw-floor-done")" href="@($"/floors/{f.Id}")">
+                            <MudIcon Icon="@(f.Check.NeedsCheck ? Icons.Material.Filled.Warning : Icons.Material.Filled.CheckCircle)" Size="Size.Small" />
+                            <div>
+                                <div class="jw-floor-name">@f.Name</div>
+                                <div class="jw-sub">@string.Format(L["梁 {0}・柱 {1}"], f.BeamCount, f.PillarCount)</div>
+                                @if (f.Check.NeedsCheck)
+                                {
+                                    <div class="jw-floor-reason">@L["要確認"]：@f.Check.Reason</div>
+                                }
+                            </div>
+                        </a>
+                    }
+                    @for (var i = _floors.Count + 1; i <= _project.FloorQuantity; i++)
+                    {
+                        <div class="jw-floor">
+                            <MudIcon Icon="@Icons.Material.Outlined.Layers" Size="Size.Small" />
+                            <div>
+                                <div class="jw-floor-name">@string.Format(L["{0} 階目"], i)</div>
+                                <div class="jw-sub">@L["未取込"]</div>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-3">
+                    @L["階ごとに .jww を取り込むと、梁・柱・金物の数がここと工事一覧に反映されます。"]
+                </MudText>
+            </MudPaper>
+
+            <MudPaper Class="jw-card pa-5 mt-3" Elevation="0">
+                <MudText Typo="Typo.h6" Class="mb-3">@L["解析結果"]</MudText>
+                <div class="jw-stat-row">
+                    <div class="jw-stat"><span>@L["梁数"]</span><b>@_project.BeamCount</b></div>
+                    <div class="jw-stat"><span>@L["K柱"]</span><b>@_project.KPillarCount</b></div>
+                    <div class="jw-stat"><span>@L["単柱"]</span><b>@_project.SinglePillarCount</b></div>
+                    <div class="jw-stat"><span>@L["B金物"]</span><b>@_project.BCount</b></div>
+                    <div class="jw-stat"><span>@L["BG金物"]</span><b>@_project.BGCount</b></div>
+                </div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private ProjectListItem? _project;
+    private Guid? _budgetId;
+    private IReadOnlyList<Jw.Application.Floors.FloorListItem> _floors = [];
+    private List<BreadcrumbItem> _crumbs = [];
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var ok = await Ui.RunAsync(async () =>
+        {
+            _project = await Service.GetAsync(Id);
+            _floors = await Floors.ListAsync(Id);
+            if (CurrentUser.HasPermission(Permissions.Budget.View)) _budgetId = await Budgets.FindByProjectAsync(Id);
+        });
+        if (!ok) { Nav.NavigateTo("/projects"); return; }
+        _crumbs = [new(L["工事一覧"], "/projects"), new(_project!.Name, null, disabled: true)];
+    }
+
+    private async Task EditAsync()
+    {
+        if (await ProjectDialog.ShowAsync(Dialogs, L, Id)) await LoadAsync();
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (await ProjectDialog.ConfirmDeleteAsync(Dialogs, L, Ui, Service, _project!)) Nav.NavigateTo("/projects");
+    }
+
+    private async Task ImportAsync()
+    {
+        var parameters = new DialogParameters<ImportDialog> { { x => x.ProjectId, Id } };
+        var dialog = await Dialogs.ShowAsync<ImportDialog>(L["図面を取り込む"], parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: Guid floorId }) Nav.NavigateTo($"/floors/{floorId}");
+        else await LoadAsync();
+    }
+
+    private bool _exporting;
+
+    private async Task GenerateBudgetAsync()
+    {
+        if (_budgetId is not null)
+        {
+            var ok = await Dialogs.ShowMessageBoxAsync(L["予算の再作成"], L["解析結果から作成した明細を作り直します。手入力の明細（カスタム予算）は残ります。よろしいですか？"],
+                yesText: L["再作成する"], cancelText: L["キャンセル"]);
+            if (ok != true) return;
+        }
+        Guid id = default;
+        if (await Ui.RunAsync(async () => id = await Budgets.GenerateAsync(Id), L["予算を作成しました。"]))
+            Nav.NavigateTo($"/budgets/{id}");
+    }
+
+    private async Task ExportAllAsync()
+    {
+        _exporting = true;
+        Jw.Application.Budgets.ExportedFile? file = null;
+        if (await Ui.RunAsync(async () => file = await Exports.ExportProjectAsync(Id), L["出力しました。"]))
+        {
+            using var stream = new MemoryStream(file!.Content);
+            using var streamRef = new DotNetStreamReference(stream);
+            await JS.InvokeVoidAsync("jwDownload", file.FileName, streamRef);
+        }
+        _exporting = false;
+    }
+
+    private async Task CreateBudgetAsync()
+    {
+        Guid? id = null;
+        if (await Ui.RunAsync(async () => id = await Budgets.CreateAsync(Id), L["予算を作成しました。"]))
+            Nav.NavigateTo($"/budgets/{id}");
+    }
+
+    private Task HistoryAsync() =>
+        Dialogs.ShowAsync<HistoryDialog>(string.Format(L["変更履歴：{0}"], _project!.Name),
+            new DialogParameters<HistoryDialog> { { x => x.EntityType, "Project" }, { x => x.EntityId, Id.ToString() } },
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+}

@@ -1,0 +1,203 @@
+@page "/base-data"
+@attribute [Authorize(Policy = Permissions.BaseData.View)]
+@using Jw.Application.Materials
+@using Jw.Domain.Common
+@inject MaterialService Service
+@inject IDialogService Dialogs
+@inject UiRunner Ui
+@inject ICurrentUser CurrentUser
+
+<PageTitle>@L["基礎データ"]</PageTitle>
+
+<PageHeader Title="@L["基礎データ"]" Description="@L["予算や図面解析で使う材料を、種類ごとに管理します。"]">
+    <Actions>
+        @if (CanEdit)
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CreateNewFolder" OnClick="() => EditCategoryAsync(null)">@L["種類を追加"]</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Disabled="_selected is null"
+                       OnClick="() => EditMaterialAsync(null)">@L["材料を追加"]</MudButton>
+        }
+    </Actions>
+</PageHeader>
+
+<div class="jw-split">
+    <MudPaper Class="jw-card jw-split-side" Elevation="0">
+        <div class="jw-side-title">@L["種類"]</div>
+        @if (_categories.Count == 0 && !_loading)
+        {
+            <div class="jw-empty-inline">@L["種類がありません。"]</div>
+        }
+        @foreach (var group in _categories.GroupBy(c => c.Kind))
+        {
+            <div class="jw-side-group">@L[EnumNames.Of(group.Key)]</div>
+            @foreach (var c in group)
+            {
+                <div class="jw-side-item @(c.Id == _selected?.Id ? "jw-side-item-active" : null)" @onclick="() => SelectAsync(c)">
+                    <span class="jw-side-name">@c.Name</span>
+                    <span class="jw-side-count">@c.MaterialCount</span>
+                    @if (CanEdit)
+                    {
+                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true" @onclick:stopPropagation="true"
+                                 AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                            <MudMenuItem Icon="@Icons.Material.Outlined.Edit" OnClick="() => EditCategoryAsync(c)">@L["編集"]</MudMenuItem>
+                            <MudMenuItem Icon="@Icons.Material.Outlined.Delete" OnClick="() => DeleteCategoryAsync(c)">@L["削除"]</MudMenuItem>
+                        </MudMenu>
+                    }
+                </div>
+            }
+        }
+    </MudPaper>
+
+    <MudPaper Class="jw-card jw-split-main" Elevation="0">
+        @if (_selected is null)
+        {
+            <div class="jw-empty">
+                <MudIcon Icon="@Icons.Material.Outlined.Inventory2" Size="Size.Large" Color="Color.Secondary" />
+                <MudText Color="Color.Secondary">@L["左の一覧から種類を選んでください。"]</MudText>
+            </div>
+        }
+        else
+        {
+            <div class="jw-toolbar">
+                <MudText Typo="Typo.h6">@_selected.Name</MudText>
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Text">@L[EnumNames.Of(_selected.Kind)]</MudChip>
+                <MudSpacer />
+                <MudTextField @bind-Value="_keyword" Placeholder="@L["名称・仕様・識別子で検索"]" Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="300"
+                              OnDebounceIntervalElapsed="LoadMaterialsAsync" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"
+                              OnClearButtonClick="LoadMaterialsAsync" Class="jw-search" />
+            </div>
+            <MudTable Items="_materials" Hover="true" Dense="true" Loading="_loadingMaterials" Elevation="0" Class="jw-table" RowsPerPage="50" HorizontalScrollbar="true">
+                <HeaderContent>
+                    <MudTh Style="width:1%"></MudTh>
+                    <MudTh>@L["材料名称"]</MudTh>
+                    <MudTh>@L["仕様"]</MudTh>
+                    <MudTh>@L["共通識別子"]</MudTh>
+                    <MudTh Style="text-align:right">@L["単価"]</MudTh>
+                    <MudTh>@L["単位"]</MudTh>
+                    <MudTh>@L["摘要"]</MudTh>
+                    <MudTh>@L["最終更新"]</MudTh>
+                    <MudTh Style="width:1%"></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>
+                        @{ var isDefault = context.Id == _selected.DefaultMaterialId; }
+                        <MudTooltip Text="@(isDefault ? L["既定の材料"] : L["既定にする"])">
+                            <MudIconButton Icon="@(isDefault ? Icons.Material.Filled.Star : Icons.Material.Outlined.StarBorder)" Size="Size.Small"
+                                           Color="@(isDefault ? Color.Warning : Color.Default)" Disabled="!CanEdit"
+                                           OnClick="() => ToggleDefaultAsync(context, isDefault)" />
+                        </MudTooltip>
+                    </MudTd>
+                    <MudTd><b>@context.Name</b></MudTd>
+                    <MudTd>@context.Spec</MudTd>
+                    <MudTd>@context.GeneralTitle</MudTd>
+                    <MudTd Style="text-align:right">@context.UnitPrice.ToString("#,0.##")</MudTd>
+                    <MudTd>@context.UnitName</MudTd>
+                    <MudTd>@context.Remark</MudTd>
+                    <MudTd>
+                        <div>@TimeDisplay.Format(context.ModifiedAt ?? context.CreatedAt)</div>
+                        <div class="jw-sub">@(context.ModifiedByName ?? context.CreatedByName)</div>
+                    </MudTd>
+                    <MudTd Class="jw-row-actions">
+                        @if (CanEdit)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditMaterialAsync(context.Id)" />
+                            <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteMaterialAsync(context)" />
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <div class="jw-empty-inline">@L["材料が登録されていません。"]</div>
+                </NoRecordsContent>
+                <PagerContent>
+                    <MudTablePager HideRowsPerPage="true" />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudPaper>
+</div>
+
+@code {
+    private IReadOnlyList<CategoryItem> _categories = [];
+    private IReadOnlyList<MaterialItem> _materials = [];
+    private CategoryItem? _selected;
+    private string? _keyword;
+    private bool _loading = true;
+    private bool _loadingMaterials;
+
+    private bool CanEdit => CurrentUser.HasPermission(Permissions.BaseData.Edit);
+
+    protected override Task OnInitializedAsync() => LoadCategoriesAsync();
+
+    private async Task LoadCategoriesAsync()
+    {
+        _loading = true;
+        await Ui.RunAsync(async () => _categories = await Service.CategoriesAsync());
+        _loading = false;
+        _selected = _selected is null ? _categories.FirstOrDefault() : _categories.FirstOrDefault(c => c.Id == _selected.Id);
+        await LoadMaterialsAsync();
+    }
+
+    private async Task LoadMaterialsAsync()
+    {
+        if (_selected is null) { _materials = []; return; }
+        _loadingMaterials = true;
+        await Ui.RunAsync(async () => _materials = await Service.MaterialsAsync(_selected.Id, _keyword));
+        _loadingMaterials = false;
+    }
+
+    private async Task SelectAsync(CategoryItem c)
+    {
+        _selected = c;
+        _keyword = null;
+        await LoadMaterialsAsync();
+    }
+
+    private async Task EditCategoryAsync(CategoryItem? c)
+    {
+        var parameters = new DialogParameters<CategoryDialog> { { x => x.Category, c } };
+        var dialog = await Dialogs.ShowAsync<CategoryDialog>(c is null ? L["種類を追加"] : L["種類を編集"], parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: Guid id })
+        {
+            await LoadCategoriesAsync();
+            var added = _categories.FirstOrDefault(x => x.Id == id);
+            if (added is not null) await SelectAsync(added);
+        }
+    }
+
+    private async Task DeleteCategoryAsync(CategoryItem c)
+    {
+        var ok = await Dialogs.ShowMessageBoxAsync(L["削除の確認"], string.Format(L["種類「{0}」を削除しますか？"], c.Name),
+            yesText: L["削除する"], cancelText: L["キャンセル"]);
+        if (ok != true) return;
+        if (await Ui.RunAsync(() => Service.DeleteCategoryAsync(c.Id), L["削除しました。"]))
+        {
+            if (_selected?.Id == c.Id) _selected = null;
+            await LoadCategoriesAsync();
+        }
+    }
+
+    private async Task EditMaterialAsync(Guid? id)
+    {
+        var parameters = new DialogParameters<MaterialDialog> { { x => x.MaterialId, id }, { x => x.Category, _selected } };
+        var dialog = await Dialogs.ShowAsync<MaterialDialog>(id is null ? L["材料を追加"] : L["材料を編集"], parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false }) await LoadCategoriesAsync();
+    }
+
+    private async Task DeleteMaterialAsync(MaterialItem m)
+    {
+        var ok = await Dialogs.ShowMessageBoxAsync(L["削除の確認"],
+            string.Format(L["材料「{0}」を削除しますか？作成済みの予算明細には影響しません。"], m.Description),
+            yesText: L["削除する"], cancelText: L["キャンセル"]);
+        if (ok != true) return;
+        if (await Ui.RunAsync(() => Service.DeleteMaterialAsync(m.Id), L["削除しました。"])) await LoadCategoriesAsync();
+    }
+
+    private async Task ToggleDefaultAsync(MaterialItem m, bool isDefault)
+    {
+        if (await Ui.RunAsync(() => Service.SetDefaultAsync(_selected!.Id, isDefault ? null : m.Id)))
+            await LoadCategoriesAsync();
+    }
+}

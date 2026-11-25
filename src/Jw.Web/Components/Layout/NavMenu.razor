@@ -4,15 +4,21 @@
     </AuthorizeView>
 
     <div class="jw-nav-section">@L["業務"]</div>
-    <MudNavLink Disabled="true" Icon="@Icons.Material.Outlined.Apartment">@L["工事一覧"] <span class="jw-soon">@L["準備中"]</span></MudNavLink>
+    <AuthorizeView Policy="@Permissions.Projects.View" Context="_">
+        <MudNavLink Href="/projects" Icon="@Icons.Material.Outlined.Apartment">@L["工事一覧"]</MudNavLink>
+    </AuthorizeView>
     <AuthorizeView Policy="@Permissions.Customers.View" Context="_">
         <MudNavLink Href="/customers" Icon="@Icons.Material.Outlined.Business">@L["顧客"]</MudNavLink>
     </AuthorizeView>
-    <MudNavLink Disabled="true" Icon="@Icons.Material.Outlined.Calculate">@L["予算"] <span class="jw-soon">@L["準備中"]</span></MudNavLink>
-    <MudNavLink Disabled="true" Icon="@Icons.Material.Outlined.Inventory2">@L["基礎データ"] <span class="jw-soon">@L["準備中"]</span></MudNavLink>
+    <AuthorizeView Policy="@Permissions.Budget.View" Context="_">
+        <MudNavLink Href="/budgets" Icon="@Icons.Material.Outlined.Calculate">@L["予算"]</MudNavLink>
+    </AuthorizeView>
+    <AuthorizeView Policy="@Permissions.BaseData.View" Context="_">
+        <MudNavLink Href="/base-data" Icon="@Icons.Material.Outlined.Inventory2">@L["基礎データ"]</MudNavLink>
+    </AuthorizeView>
 
     <AuthorizeView Context="auth">
-        @if (HasAny(auth.User, Permissions.Admin.Users, Permissions.Admin.Roles, Permissions.Admin.Audit))
+        @if (HasAny(auth.User, Permissions.Admin.Users, Permissions.Admin.Roles, Permissions.Admin.Audit, Permissions.Admin.Settings))
         {
             <div class="jw-nav-section">@L["システム管理"]</div>
         }
@@ -25,6 +31,9 @@
     </AuthorizeView>
     <AuthorizeView Policy="@Permissions.Admin.Audit" Context="_">
         <MudNavLink Href="/admin/audit" Icon="@Icons.Material.Outlined.History">@L["操作ログ"]</MudNavLink>
+    </AuthorizeView>
+    <AuthorizeView Policy="@Permissions.Admin.Settings" Context="_">
+        <MudNavLink Href="/admin/settings" Icon="@Icons.Material.Outlined.Settings">@L["システム設定"]</MudNavLink>
     </AuthorizeView>
 </MudNavMenu>
 

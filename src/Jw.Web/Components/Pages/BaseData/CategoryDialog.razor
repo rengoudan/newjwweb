@@ -1,0 +1,49 @@
+@using Jw.Application.Materials
+@using Jw.Domain.Common
+@inject MaterialService Service
+@inject UiRunner Ui
+
+<MudDialog>
+    <DialogContent>
+        <EditForm id="category-form" Model="_model" OnValidSubmit="SaveAsync">
+            <DataAnnotationsValidator />
+            <MudStack Spacing="3">
+                <MudTextField @bind-Value="_model.Name" For="() => _model.Name" Label="@L["種類名"]" Required="true"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" AutoFocus="true" />
+                <EnumSelect T="MaterialKind" @bind-Value="_model.Kind" Label="@L["カテゴリー"]" Names="EnumNames.Of"
+                            Disabled="@(Category is { MaterialCount: > 0 })" />
+                @if (Category is { MaterialCount: > 0 })
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@L["材料が登録されているため、カテゴリーは変更できません。"]</MudText>
+                }
+            </MudStack>
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => MudDialog.Cancel()">@L["キャンセル"]</MudButton>
+        <MudButton ButtonType="ButtonType.Submit" form="category-form" Variant="Variant.Filled" Color="Color.Primary" Disabled="_saving">@L["保存"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public CategoryItem? Category { get; set; }
+
+    private CategoryInput _model = new();
+    private bool _saving;
+
+    protected override void OnInitialized()
+    {
+        if (Category is not null)
+            _model = new CategoryInput { Id = Category.Id, Name = Category.Name, Kind = Category.Kind, ConcurrencyStamp = Category.ConcurrencyStamp };
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        Guid id = default;
+        var ok = await Ui.RunAsync(async () => id = await Service.SaveCategoryAsync(_model), L["保存しました。"]);
+        _saving = false;
+        if (ok) MudDialog.Close(DialogResult.Ok(id));
+    }
+}

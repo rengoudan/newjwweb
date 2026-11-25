@@ -1,0 +1,33 @@
+@using Jw.Application.Customers
+
+@* JW_CAD 线色 lc / 线种 ls 番号选择（-1 = 未设定） *@
+<MudSelect T="int" Value="Value" ValueChanged="ValueChanged" Label="@Label" Variant="Variant.Outlined" Margin="Margin.Dense"
+           Dense="true" Class="jw-setting-input" AnchorOrigin="Origin.BottomCenter">
+    @foreach (var n in JwPen.Numbers)
+    {
+        <MudSelectItem T="int" Value="n">
+            @if (Kind == PenKind.Color && n >= 0)
+            {
+                <span class="jw-pen-swatch" style="background:@SwatchOf(n)"></span>
+            }
+            @(Kind == PenKind.Color ? JwPen.ColorName(n) : JwPen.StyleName(n))
+        </MudSelectItem>
+    }
+</MudSelect>
+
+@code {
+    public enum PenKind { Color, Style }
+
+    [Parameter] public PenKind Kind { get; set; }
+    [Parameter] public int Value { get; set; }
+    [Parameter] public EventCallback<int> ValueChanged { get; set; }
+    [Parameter] public string? Label { get; set; }
+
+    // JW_CAD 标准线色（1～9）的大致显示色，仅用于辨认
+    private static string SwatchOf(int n) => n switch
+    {
+        1 => "#00ffff", 2 => "#000000", 3 => "#00ff00", 4 => "#ffff00", 5 => "#ff00ff",
+        6 => "#0000ff", 7 => "#00a000", 8 => "#ff0000", 9 => "#808080",
+        _ => "#d0d4da",
+    };
+}

@@ -1,0 +1,480 @@
+using JwCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using NetTopologySuite.Geometries;
+using JwwHelper;
+
+namespace JwShapeCommon.Model
+{
+    /// <summary>
+    /// 如果线是用来链接 相互平行的 水平梁， start为X 小的  start相对BG孔组 需要加 即在右边
+    /// end 为X 大的  需要减  即在接触的左边
+    /// 如果相互平行为的垂直梁  start 为y小的 相对于bg孔组 需要加 即在上
+    /// </summary>
+    public class JwLianjieSingle
+    {
+        // 移植：所属图纸（缩尺等），旧版读静态 JwFileConsts
+        public JwDrawing Drawing { get; }
+
+        public string Id { get; set; }
+        public JwXian Xian { get; set; }
+
+        /// <summary>
+        /// start为X 小的  Yadd指示 end的y需要加 还是减  true 加 false 减
+        /// </summary>
+        public bool YAdd { get; set; }
+
+        public JwLianjieSingle(JwDrawing drawing)
+        {
+            Drawing = drawing ?? throw new ArgumentNullException(nameof(drawing));
+            Id= Guid.NewGuid().ToString();
+        }
+
+        public JwLianjieSingle(JwDrawing drawing, JwXian jwXian)
+        {
+            Drawing = drawing ?? throw new ArgumentNullException(nameof(drawing));
+
+        }
+
+        /// <summary>
+        /// 指示连接线用来链接 垂直 还是水平的胜方梁 没什么意义 存在相互垂直的
+        /// 
+        /// </summary>
+        public BeamDirectionType DirectionType { get; set; }
+
+
+        /// <summary>
+        /// 排序规则  由下到上  由左到右 根据胜方梁 
+        /// </summary>
+        public JwPointBeam Start { get; set; }
+
+        public JwPointBeam End { get; set; }
+
+        public bool IsCreateSuccess { get; set; }
+
+        /// <summary>
+        /// 成对的交叉线，一个标识为增加，一个标识为减少  用来错开显示的长度
+        /// </summary>
+        public bool IsAddOrReduce { get; set; }
+
+        /// <summary>
+        /// 标记成对
+        /// </summary>
+        public string GroupId { get; set; }
+
+        /// <summary>
+        /// 2026年3月20日 增加长度 方便取max
+        /// </summary>
+        public double Length { get; set; }
+
+        /// <summary>
+        /// 2026年7月19日 为了支持判断桐beam，链接hole小于43调整
+        /// </summary>
+        public JwHole StartHoleOriginal { get; set; }
+
+        /// <summary>
+        /// 实际
+        /// </summary>
+        public JwHole StartHole { get; set; }
+
+        public bool HasStartChange { get; set; }
+
+        public LianjiePosition StartPosition { get; set; }
+
+        public JwHole EndHoleOriginal { get; set; }
+        /// <summary>
+        /// 实际
+        /// </summary>
+        public JwHole EndHole { get; set; } 
+
+        public bool HasEndChange { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public LianjiePosition EndPosition { get; set; }
+
+        /// <summary>
+        /// 2026年9月7日 vpl使用 其他无意义
+        /// </summary>
+        public BeamEndPosition VPLStartPosition { get; set; }
+
+        public BeamEndPosition VPLEndPosition { get; set; }
+
+        public JwLianjieData ToDbData()
+        {
+            JwLianjieData lianjieData = new JwLianjieData();
+            lianjieData.Id = Id;
+            lianjieData.Start=new Point(Start.RealPoint.X, Start.RealPoint.Y);
+            if(object.Equals(Start.RealPointOriginal,null))
+            {
+                lianjieData.StartOriginal = new Point(Start.RealPoint.X, Start.RealPoint.Y);
+            }
+            else
+            {
+                lianjieData.StartOriginal = new Point(Start.RealPointOriginal.X, Start.RealPointOriginal.Y);
+            }
+                
+            lianjieData.End = new Point(End.RealPoint.X, End.RealPoint.Y);
+            if(object.Equals(End.RealPointOriginal,null))
+            {
+                lianjieData.EndOriginal = new Point(End.RealPoint.X, End.RealPoint.Y);
+            }
+            else
+            {
+                lianjieData.EndOriginal = new Point(End.RealPointOriginal.X, End.RealPointOriginal.Y);
+            }
+            //lianjieData.EndOriginal = new Point(End.RealPointOriginal.X, End.RealPointOriginal.Y);
+            lianjieData.HasEndChange= HasEndChange;
+            lianjieData.HasStartChange= HasStartChange;
+            ////lianjieData.Id=Guid.NewGuid().ToString();
+            //// = 12;
+            ////var slq = JwExtend.Distance(Start.RealPoint, End.RealPoint);
+            //var dl = Math.Round(Length, 1) * Drawing.Scale;
+            //dl = dl - 220;//减部件长度
+            lianjieData.Length = Length;
+            lianjieData.VPLStartPosition= VPLStartPosition;
+            lianjieData.VPLEndPosition= VPLEndPosition;
+            return lianjieData;
+        }
+
+
+
+        public void ReplaceStartHole(JwHole newHole)
+        {
+            Start.Hole.IsMachining = false; 
+            //Start.RealPointOriginal= Start.RealPoint;
+            //Start.Hole.
+            Start.Hole = newHole;
+            HasStartChange = true;
+            Start.Recalculate(); // 如果你希望 RealPoint 也更新
+            calculateLength();// 更新长度
+        }
+
+        public void ReplaceEndHole(JwHole newHole)
+        {
+            Start.Hole.IsMachining = false;
+            End.Hole = newHole;
+            HasEndChange = true;
+            End.Recalculate();
+            calculateLength();// 更新长度l`
+        }
+
+
+        private void calculateLength()
+        {
+            if (Start != null && End != null)
+            {
+                var lg = JwExtend.Distance(Start.RealPoint, End.RealPoint);
+                var dl = Math.Round(lg, 1) * Drawing.Scale;
+                dl = dl - 220;//减部件长度
+                this.Length = Math.Round(dl, 0);
+            }
+        }
+    }
+
+    public class JwLianjie:IDrawToJww
+    {
+        // 移植：所属图纸（缩尺等），旧版读静态 JwFileConsts
+        public JwDrawing Drawing { get; }
+
+        public JwLianjie(JwDrawing drawing) { Drawing = drawing ?? throw new ArgumentNullException(nameof(drawing)); }
+
+        public JWPoint Start { get; set; }
+
+        public JWPoint End { get; set; }
+
+        public JWPoint StartOriginal { get; set; }
+
+        public JWPoint EndOriginal { get; set; }
+
+        public bool HasStartChange { get; set; }
+
+        public bool HasEndChange { get; set; }
+
+        /// <summary>
+        /// 实际的长度单位mM
+        /// </summary>
+        public double Length { get; set; }
+
+        public string ProjectSubName { get; set; }
+
+        public string Id { get; set; }
+        public string JwProjectSubDataId { get; set; }
+
+        public bool IsAddOrReduce { get; set; }
+
+        /// <summary>
+        /// 2026年9月7日 vpl使用 其他无意义
+        /// </summary>
+        public BeamEndPosition VPLStartPosition { get; set; }
+
+        public BeamEndPosition VPLEndPosition { get; set; }
+
+        /// <summary>
+        /// 2026年9月23日
+        /// </summary>
+        /// <returns></returns>
+        public List<JwwData> DrawToJww()
+        {
+            double jd=Start.LineAngle(End);
+            List<JwwData> jwwDatas = new List<JwwData>();
+            JwwSunpou sunpou = new JwwSunpou();
+            //sunpou.m_nPenColor = 2;
+            //sunpou.m_nPenStyle = 1;
+            sunpou.m_Sen.m_nPenColor = 2;
+            sunpou.m_Sen.m_nPenStyle = 2;
+            sunpou.m_Sen.m_start_x = Start.X;
+            sunpou.m_Sen.m_start_y = Start.Y;
+            sunpou.m_Sen.m_end_x = End.X;
+            sunpou.m_Sen.m_end_y = End.Y;
+            sunpou.m_Moji.m_string= Length.ToString();
+            sunpou.m_Moji.m_start_x = (Start.X+End.X)/2;
+            sunpou.m_Moji.m_start_y = (Start.Y+End.Y)/2;
+            sunpou.m_Moji.m_dSizeX = 2;
+            sunpou.m_Moji.m_dSizeY = 3;
+            sunpou.m_Moji.m_degKakudo = jd;
+            sunpou.m_nLayer= (int)DrawShapeType.LinkPart + 1;
+            jwwDatas.Add(sunpou);
+            JwwTen tenone=new JwwTen();
+            tenone.m_nPenColor = 9;
+            tenone.m_nPenStyle = 1;
+            tenone.m_start_x = Start.X;
+            tenone.m_start_y = Start.Y;
+            tenone.m_nLayer = (int)DrawShapeType.LinkPart + 1;
+            jwwDatas.Add(tenone);
+            JwwTen tentwo = new JwwTen();
+            tentwo.m_nPenColor = 9;
+            tentwo.m_nPenStyle = 1;
+            tentwo.m_start_x = End.X;
+            tentwo.m_start_y = End.Y;
+            tentwo.m_nLayer = (int)DrawShapeType.LinkPart + 1;
+            jwwDatas.Add(tentwo);
+
+            JwVpl vpl = new JwVpl(Drawing, Start, VPLStartPosition);
+
+            JwVpl vpl2=new JwVpl(Drawing, End, VPLEndPosition);
+
+            return jwwDatas;
+        }
+
+    }
+
+    /// <summary>
+    /// 连接线的 端点  
+    /// </summary>
+    public class JwPointBeam
+    {
+        // 移植：所属图纸（缩尺等），旧版读静态 JwFileConsts
+        public JwDrawing Drawing { get; }
+
+        public JwPointBeam(JwDrawing drawing)
+        {
+            Drawing = drawing ?? throw new ArgumentNullException(nameof(drawing));
+        }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="point"></param>
+        /// <param name="touch"></param>
+        public JwPointBeam(JwDrawing drawing, JWPoint point,JwTouch touch,bool istart)
+        {
+            Drawing = drawing ?? throw new ArgumentNullException(nameof(drawing));
+            this.Touch = touch;
+            this.NearPoint = point;
+            this.IsStart = istart;
+            this.IsEnd = !istart;
+            this.NearPoint = point;
+            this.LianjieType = touch.WinnerBeam.DirectionType;
+            //this.calculate();
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="point"></param>
+        /// <param name="touch"></param>
+        /// <param name="istart"></param>
+        public JwPointBeam(JwDrawing drawing, JWPoint point,JwTouch touch,bool istart, ZhengfuType direct)
+        {
+            Drawing = drawing ?? throw new ArgumentNullException(nameof(drawing));
+            this.Touch = touch;
+            this.LianjieType=touch.WinnerBeam.DirectionType;    
+            this.IsStart=istart;
+            this.IsEnd=!istart;
+            NearPoint = point;
+            this.Direct= direct;
+            calculate();
+        }
+        private void calculate(bool isjs=false)
+        {
+            if(!isjs)
+            {
+                double banjing = JwConstants.EllipseSpacing / (2 * Drawing.Scale);
+                if (this.LianjieType == BeamDirectionType.Horizontal)
+                {
+                    double pinayix = (int)this.Direct;
+                    double realy = 0;
+                    if (Touch.JwBeamVertical.Position == TaggDirect.Down)
+                    {
+                        realy = Touch.WinnerBeam.Center - banjing;
+                    }
+                    if (Touch.JwBeamVertical.Position == TaggDirect.Up)
+                    {
+                        realy = Touch.WinnerBeam.Center + banjing;
+                    }
+
+                    //double realy = Touch.WinnerBeam.Center + ((int)Direct) * 50;
+
+                    //double realx = Touch.LoserBeam.Center + pinayix * (100 / Drawing.Scale);
+                    double realx = Touch.LoserBeam.Center + pinayix * (84 / Drawing.Scale);
+                    this.RealPoint = new JWPoint(realx, realy);
+                }
+                else
+                {
+                    double realx = 0;// = this.IsStart ? 50 : -50;
+                    double realy = 0;
+                    if (Touch.JwBeamVertical.Position == TaggDirect.Right)
+                    {
+                        realx = Touch.WinnerBeam.Center + banjing;
+                    }
+                    if (Touch.JwBeamVertical.Position == TaggDirect.Left)
+                    {
+                        realx = Touch.WinnerBeam.Center - banjing;
+                    }
+                    double pinayix = (int)this.Direct;
+                    //realx = Touch.WinnerBeam.Center + ((int)Direct) * 50;
+
+                    //realy= Touch.LoserBeam.Center + pinayix * (100 / Drawing.Scale);
+                    realy = Touch.LoserBeam.Center + pinayix * (84 / Drawing.Scale);
+
+                    this.RealPoint = new JWPoint(realx, realy);
+                }
+            }
+            
+        }
+
+
+        //
+        public void Recalculate()
+        {
+            this.RealPointOriginal = this.RealPoint;
+            double x=Hole.Location.X;
+            double y=Hole.Location.Y;
+            double banjing = JwConstants.EllipseSpacing / (2 * Drawing.Scale);
+            switch (Position)
+            {
+                case LianjiePosition.Up:
+                    y = y + banjing;
+                    break;
+                case LianjiePosition.Down:
+                    y -= banjing;
+                    break;
+                case LianjiePosition.Left:
+                    x -= banjing;
+                    break;
+                case LianjiePosition.Right:
+                    x += banjing;
+                    break;
+                default:
+                    break;
+            }
+            RealPoint=new JWPoint(x, y);
+        }
+
+        /// <summary>
+        /// 设计图里表示的 接触点
+        /// </summary>
+        public JWPoint NearPoint { get;set; }
+
+        /// <summary>
+        /// 需要针对84*2 两个孔组间的距离 增加额外判定并且赋值操作
+        /// </summary>
+        public JWPoint RealPoint { get; set; }
+
+        public JWPoint RealPointOriginal { get; set; }
+
+        /// <summary>
+        /// 败方梁
+        /// </summary>
+        public JwBeam JieChuBeam { get; set; }
+
+        /// <summary>
+        /// 对应胜方梁 所属的梁
+        /// </summary>
+        public JwBeam ShengfangBeam { get; set; }
+
+        /// <summary>
+        /// 点关联的接触方
+        /// </summary>
+        public JwTouch Touch { get; set; }
+
+        /// <summary>
+        /// touch isshuping  true 判断 pone ptwo 的 Y大小 大的 减 小的加 false 判断 X大小 同样
+        /// </summary>
+        public double OffsetLosetCenter { get; set; }
+
+
+        /// <summary>
+        /// 暂无用
+        /// 2025年5月24日 标识两个 相互平行的需要链接梁 如果 是水平 start 为X小的 偏移需要加
+        /// 相互平行的梁为垂直的梁  start为Y 小的  偏移需要加   
+        /// </summary>
+        public bool IsStart { get; set; }
+
+        /// <summary>
+        /// 2025年5月24日  
+        /// 约定好end 偏移为减   
+        /// </summary>
+        public bool IsEnd { get; set; } = false;
+
+
+        /// <summary>
+        /// 水平 为 链接两个水平的梁，即loserbeam为垂直的败
+        /// 上述情况 direct 分为两种 上下， 
+        /// 如果起点为上，则 实际Y 的计算取win梁的中心线 +50
+        /// 如果方向为下，则 实际Y 的计算取win梁的中心线 -50
+        /// 垂直 为 链接两个垂直的梁，即loserbeam为水平的败
+        /// left 为X -50
+        /// right为Y +50
+        /// 
+        /// </summary>
+        public BeamDirectionType LianjieType { get; set; }
+
+        private ZhengfuType _direct;
+        /// <summary>
+        /// 
+        /// </summary>
+        public ZhengfuType Direct 
+        { get { return _direct; } set { _direct = value;this.calculate(); } }
+
+        public LianjiePosition Position { get; set; }
+
+        public JwHole Hole { get; set; }
+
+        public bool HasChange { get; set; }
+
+        public JwHole NewHole { get; set; }
+
+        public BeamEndPosition VPLPosition { get; set; }
+
+    }
+
+    public class TouchType
+    {
+        public bool IsStart { get; set; }
+
+        public JWPoint JWPoint { get; set; }
+
+        public JwTouch JwTouch { get; set; }
+    }
+
+    public class HoleOwnerInfo
+    {
+        public JwLianjieSingle Lianjie { get; set; }
+        public bool IsStart { get; set; }
+    }
+}

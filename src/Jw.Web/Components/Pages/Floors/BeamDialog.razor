@@ -1,0 +1,40 @@
+@using Jw.Application.Floors
+@inject FloorService Service
+@inject UiRunner Ui
+
+<MudDialog>
+    <DialogContent>
+        <EditForm id="beam-form" Model="_model" OnValidSubmit="SaveAsync">
+            <DataAnnotationsValidator />
+            <MudStack Spacing="3">
+                <MudTextField @bind-Value="_model.BeamCode" For="() => _model.BeamCode" Label="@L["梁番号"]" Required="true"
+                              HelperText="@string.Format(L["元の番号：{0}"], Beam.InitialBeamCode)" Variant="Variant.Outlined" Margin="Margin.Dense" AutoFocus="true" />
+                <MudTextField @bind-Value="_model.GongQu" For="() => _model.GongQu" Label="@L["工区"]" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudSwitch T="bool" @bind-Value="_model.HasCsv" Color="Color.Primary" Label="@L["梁製造 CSV に出力する"]" />
+            </MudStack>
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => MudDialog.Cancel()">@L["キャンセル"]</MudButton>
+        <MudButton ButtonType="ButtonType.Submit" form="beam-form" Variant="Variant.Filled" Color="Color.Primary" Disabled="_saving">@L["保存"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public BeamRow Beam { get; set; } = default!;
+
+    private BeamEditInput _model = new();
+    private bool _saving;
+
+    protected override void OnInitialized() =>
+        _model = new BeamEditInput { BeamId = Beam.Id, BeamCode = Beam.BeamCode, GongQu = Beam.GongQu, HasCsv = Beam.HasCsv };
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        var ok = await Ui.RunAsync(() => Service.UpdateBeamAsync(_model), L["保存しました。"]);
+        _saving = false;
+        if (ok) MudDialog.Close(DialogResult.Ok(true));
+    }
+}

@@ -18,7 +18,8 @@ namespace JwwHelper {
 		pin_ptr<const WCHAR> str = PtrToStringChars(templatePath);
 		//CW2A astr(str);
 		//ファイルを読み込んでヘッダーを初期化
-		m_pWriter->InitHeader(str);
+		try { m_pWriter->InitHeader(str); }
+		catch (CException* e) { TCHAR msg[512] = {}; e->GetErrorMessage(msg, 512); e->Delete(); throw gcnew System::IO::IOException(gcnew String(msg)); }
 		//C#側からヘッダーを変更できるようにコピー。コピーであることに注意。
 		_Header = gcnew JwwHeader(m_pWriter->m_pHeader->Clone());
 	}

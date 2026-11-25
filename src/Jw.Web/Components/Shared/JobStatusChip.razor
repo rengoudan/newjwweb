@@ -1,0 +1,24 @@
+@using Jw.Application.Floors
+
+<MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="ColorOf(Status)" Icon="@(Status is ParseJobStatus.Running or ParseJobStatus.Queued ? Icons.Material.Outlined.HourglassTop : null)">
+    @L[NameOf(Status)]
+</MudChip>
+
+@code {
+    [Parameter, EditorRequired] public ParseJobStatus Status { get; set; }
+
+    private static string NameOf(ParseJobStatus s) => s switch
+    {
+        ParseJobStatus.Queued => "待機中",
+        ParseJobStatus.Running => "解析中",
+        ParseJobStatus.Succeeded => "解析完了",
+        _ => "失敗",
+    };
+
+    private static Color ColorOf(ParseJobStatus s) => s switch
+    {
+        ParseJobStatus.Succeeded => Color.Success,
+        ParseJobStatus.Failed => Color.Error,
+        _ => Color.Primary,
+    };
+}

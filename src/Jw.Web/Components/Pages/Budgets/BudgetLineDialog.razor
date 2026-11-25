@@ -1,0 +1,95 @@
+@using Jw.Application.Budgets
+@using Jw.Application.Materials
+@using Jw.Domain.Common
+@inject BudgetService Service
+@inject MaterialService Materials
+@inject UiRunner Ui
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            @if (Line is null)
+            {
+                <MudAutocomplete T="MaterialItem" @bind-Value="_material" Label="@L["材料"]" SearchFunc="SearchAsync"
+                                 ToStringFunc="@(m => m is null ? "" : m.Description)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                 ResetValueOnEmptyText="true" Clearable="true" AutoFocus="true" MaxItems="50"
+                                 HelperText="@L["材料名称・仕様・識別子で検索できます。"]" Required="true">
+                    <ItemTemplate Context="m">
+                        <div class="d-flex align-center gap-2" style="width:100%">
+                            <span>@m.Description</span>
+                            <MudSpacer />
+                            <span class="jw-sub">@L[EnumNames.Of(m.Kind)] ・ @m.UnitPrice.ToString("#,0.##") / @m.UnitName</span>
+                        </div>
+                    </ItemTemplate>
+                </MudAutocomplete>
+            }
+            else
+            {
+                <div>
+                    <MudText Typo="Typo.subtitle1"><b>@Line.ItemName</b> @Line.Spec</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@L[EnumNames.Of(Line.Kind)] ・ @L[EnumNames.Of(Line.Source)]</MudText>
+                </div>
+            }
+
+            <MudGrid Spacing="2">
+                <MudItem xs="6">
+                    <MudNumericField T="decimal" @bind-Value="_quantity" Label="@L["数量"]" Min="0" Format="0.###"
+                                     Adornment="Adornment.End" AdornmentText="@UnitName" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudNumericField T="decimal?" @bind-Value="_unitPrice" Label="@L["単価"]" Min="0" Format="#,0.##"
+                                     Placeholder="@DefaultPriceText" HelperText="@L["空欄の場合は材料の単価を使います。"]"
+                                     Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" />
+                </MudItem>
+            </MudGrid>
+            <div class="jw-total-row jw-total-grand">
+                <span>@L["金額"]</span><b>@Budgets.Money(_quantity * (_unitPrice ?? DefaultPrice))</b>
+            </div>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => MudDialog.Cancel()">@L["キャンセル"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="!CanSave" OnClick="SaveAsync">@L["保存"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public Guid BudgetId { get; set; }
+    [Parameter] public BudgetLineItem? Line { get; set; }
+
+    private MaterialItem? _material;
+    private decimal _quantity = 1;
+    private decimal? _unitPrice;
+    private bool _saving;
+
+    private decimal DefaultPrice => Line?.UnitPrice ?? _material?.UnitPrice ?? 0;
+    private string DefaultPriceText => DefaultPrice.ToString("#,0.##");
+    private string? UnitName => Line?.UnitName ?? _material?.UnitName;
+    private bool CanSave => !_saving && _quantity > 0 && (Line is not null || _material is not null);
+
+    protected override void OnInitialized()
+    {
+        if (Line is not null) _quantity = Line.Quantity;
+    }
+
+    private async Task<IEnumerable<MaterialItem>> SearchAsync(string? text, CancellationToken ct)
+    {
+        IReadOnlyList<MaterialItem> items = [];
+        await Ui.RunAsync(async () => items = await Materials.MaterialsAsync(null, text, ct));
+        return items;
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        var input = new BudgetLineInput
+        {
+            BudgetId = BudgetId, LineId = Line?.Id, MaterialId = _material?.Id, Quantity = _quantity,
+            UnitPrice = _unitPrice, ConcurrencyStamp = Line?.ConcurrencyStamp ?? Guid.Empty,
+        };
+        var ok = await Ui.RunAsync(() => Service.SaveLineAsync(input), L["保存しました。"]);
+        _saving = false;
+        if (ok) MudDialog.Close(DialogResult.Ok(true));
+    }
+}

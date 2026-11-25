@@ -1,0 +1,160 @@
+@using Jw.Application.Floors
+@implements IAsyncDisposable
+@inject ExportService Exports
+@inject UiRunner Ui
+@inject IJSRuntime JS
+
+@* 梁 1 本の 3D 表示（旧版の梁画面「3D」）。入力はその梁の加工 CSV。 *@
+<MudDialog ContentClass="pa-0">
+    <DialogContent>
+        @if (_model is null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else
+        {
+            <MudTabs Elevation="0" TabPanelsClass="pa-0" ActivePanelIndexChanged="OnTabChanged">
+                <MudTabPanel Text="3D">
+                    @if (_model.Message is not null)
+                    {
+                        <MudAlert Severity="Severity.Info" Class="ma-4">@_model.Message</MudAlert>
+                    }
+                    else
+                    {
+                        <div class="jw-3d">
+                            <div class="jw-3d-host" @ref="_host"></div>
+                            <div class="jw-3d-info">
+                                <div><b>@_model.SizeRaw</b>　@L["製品長"] @_model.Length.ToString("0.#") mm</div>
+                                <div>@L["上面(ウェブ)"] @Count("Top")　@L["右面(上フランジ)"] @Count("Right")　@L["左面(下フランジ)"] @Count("Left")</div>
+                                @if (_model.Holes.Any(h => h.IsPairPartner))
+                                {
+                                    <div class="jw-sub">@string.Format(L["※ 2D 図と同じく、CSV 1 行を対の 2 穴で表示（計 {0} 穴）"], _model.Holes.Count)</div>
+                                }
+                                @if (_model.Holes.Count(h => h.Problems.Count > 0) is var bad and > 0)
+                                {
+                                    <div class="jw-3d-bad">⚠ @string.Format(L["位置に問題のある穴 {0} 個（赤表示）"], bad)</div>
+                                }
+                                @foreach (var w in _model.Warnings.Take(3))
+                                {
+                                    <div class="jw-3d-bad">⚠ @w</div>
+                                }
+                                <div class="jw-sub">@L["左ドラッグ：回転／右ドラッグ：移動／ホイール：拡大縮小"]</div>
+                            </div>
+                            <div class="jw-3d-tools">
+                                <MudSwitch T="bool" Value="_machine" ValueChanged="SetMachineAsync" Color="Color.Primary" Size="Size.Small" Label="@L["加工機の向き（ウェブ水平）"]" />
+                                <MudSwitch T="bool" Value="_dims" ValueChanged="SetDimsAsync" Color="Color.Primary" Size="Size.Small" Label="@L["穴間隔の寸法"]" />
+                                <MudIconButton Icon="@Icons.Material.Outlined.CenterFocusStrong" Size="Size.Small" OnClick="ResetAsync" title="@L["全体表示"]" />
+                            </div>
+                            @if (_hover is not null)
+                            {
+                                <div class="jw-3d-hover">
+                                    <div><b>@_hover.FaceName</b>　φ@_hover.Diameter.ToString("0.#")</div>
+                                    <div>X=@_hover.X.ToString("0.#")（@L["先端から"]）　Y=@_hover.Y.ToString("0.#")@(_hover.IsPairPartner ? L["（対の穴）"] : "")</div>
+                                    <div class="jw-sub">CSV @_hover.LineNumber @L["行"]: @_hover.SourceLine</div>
+                                    @foreach (var p in _hover.Problems)
+                                    {
+                                        <div class="jw-3d-bad">⚠ @p</div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </MudTabPanel>
+                <MudTabPanel Text="CSV">
+                    <pre class="jw-3d-csv">@_model.Csv</pre>
+                </MudTabPanel>
+            </MudTabs>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => MudDialog.Close()">@L["閉じる"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter, EditorRequired] public Guid FloorId { get; set; }
+    [Parameter, EditorRequired] public string BeamId { get; set; } = "";
+
+    private Beam3DModel? _model;
+    private ElementReference _host;
+    private IJSObjectReference? _module;
+    private IJSObjectReference? _view;
+    private DotNetObjectReference<Beam3DDialog>? _self;
+    private Beam3DHole? _hover;
+    private bool _machine;
+    private bool _dims = true;
+    private bool _needCreate;
+
+    protected override async Task OnInitializedAsync() =>
+        await Ui.RunAsync(async () =>
+        {
+            _model = await Exports.GetBeam3DAsync(FloorId, BeamId);
+            _needCreate = _model.Message is null;
+        });
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_needCreate || _model is null) return;
+        _needCreate = false;
+        _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/beam3d.js");
+        _self ??= DotNetObjectReference.Create(this);
+        _view = await _module.InvokeAsync<IJSObjectReference>("create", _host, _model, _self);
+        if (_machine) await _view.InvokeVoidAsync("setMachine", true);
+        if (!_dims) await _view.InvokeVoidAsync("setDims", false);
+    }
+
+    /// <summary>CSV タブから戻ると 3D の DOM が作り直されるので、表示も作り直す。</summary>
+    private async Task OnTabChanged(int index)
+    {
+        await DisposeViewAsync();
+        _hover = null;
+        _needCreate = index == 0 && _model?.Message is null;
+    }
+
+    [JSInvokable]
+    public void OnHover(int index)
+    {
+        _hover = index >= 0 && index < _model?.Holes.Count ? _model.Holes[index] : null;
+        StateHasChanged();
+    }
+
+    private int Count(string face) => _model!.Holes.Count(h => h.Face == face);
+
+    private async Task SetMachineAsync(bool on)
+    {
+        _machine = on;
+        if (_view is not null) await _view.InvokeVoidAsync("setMachine", on);
+    }
+
+    private async Task SetDimsAsync(bool on)
+    {
+        _dims = on;
+        if (_view is not null) await _view.InvokeVoidAsync("setDims", on);
+    }
+
+    private async Task ResetAsync()
+    {
+        if (_view is not null) await _view.InvokeVoidAsync("reset");
+    }
+
+    private async Task DisposeViewAsync()
+    {
+        if (_view is null) return;
+        try
+        {
+            await _view.InvokeVoidAsync("dispose");
+            await _view.DisposeAsync();
+        }
+        catch (JSDisconnectedException) { }
+        _view = null;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await DisposeViewAsync();
+        try { if (_module is not null) await _module.DisposeAsync(); }
+        catch (JSDisconnectedException) { }
+        _self?.Dispose();
+    }
+}

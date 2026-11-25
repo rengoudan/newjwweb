@@ -167,6 +167,14 @@ public static class EntityDisplayNames
     private static readonly Dictionary<string, string> Map = new()
     {
         ["Customer"] = "顧客",
+        ["CustomerParseSetting"] = "解析設定",
+        ["Floor"] = "階",
+        ["SystemSetting"] = "システム設定",
+        ["Project"] = "工事",
+        ["MaterialCategory"] = "材料種類",
+        ["Material"] = "材料",
+        ["Budget"] = "予算",
+        ["BudgetLine"] = "予算明細",
         ["AppUser"] = "ユーザー",
         ["AppRole"] = "ロール",
     };

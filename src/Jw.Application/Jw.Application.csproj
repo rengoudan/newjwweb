@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Jw.Domain\Jw.Domain.csproj" />
+    <ProjectReference Include="..\Jw.Cad\Jw.Cad.csproj" />
   </ItemGroup>
 
   <ItemGroup>

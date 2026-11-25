@@ -1,0 +1,311 @@
+using JwCore;
+using JwwHelper;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace JwShapeCommon
+{
+    /// <summary>
+    /// 指示分割点 确定为三角形
+    /// 将jwblock 如果是线 将线的点填充进入jwdirected 进行初始化
+    /// </summary>
+    public class JwDirected
+    {
+
+        /// <summary>
+        /// 初始化点的集合
+        /// </summary>
+        public List<JWPoint> _initialPoints;
+
+        public List<JWPoint> Points;
+
+        public JWPoint DirectPoint;
+
+        public bool IsDirected { get; set; } = false;
+
+        public JwDirected() { } 
+
+        public JwDirected(JwwSolid solid)
+        {
+            _initialPoints = new List<JWPoint>
+            {
+                new JWPoint(solid.m_start_x, solid.m_start_y),
+                new JWPoint(solid.m_end_x, solid.m_end_y),
+                new JWPoint(solid.m_DPoint2_x, solid.m_DPoint2_y),
+                new JWPoint(solid.m_DPoint3_x, solid.m_DPoint3_y)
+            };
+
+            Points = _initialPoints.Distinct(new JwPointComparint()).ToList();
+            if (Points.Count == 3)
+            {
+                parse();
+                IsDirected = true;
+            }
+            
+        }
+
+        /// <summary>
+        /// 2026年3月19日
+        /// </summary>
+        /// <param name="points"></param>
+        public JwDirected(List<JWPoint> points)
+        {
+            Points = new List<JWPoint>();
+            foreach(var p in points)
+            {
+                Points.Add(new JWPoint(p.X, p.Y));
+            }
+            
+            if (Points.Count == 3)
+            {
+                parse();
+                IsDirected = true;
+            }
+        }
+
+        public JwDirected(JwwBlock block,List<JwwSolid> solids)
+        {
+            _initialPoints = new List<JWPoint>();
+            foreach(var solid in solids)
+            {
+                var p1 = new JWPoint(solid.m_start_x, solid.m_start_y);
+                var p2 = new JWPoint(solid.m_end_x, solid.m_end_y);
+                var p3 = new JWPoint(solid.m_DPoint2_x, solid.m_DPoint2_y);
+                var p4 = new JWPoint(solid.m_DPoint3_x, solid.m_DPoint3_y);
+                _initialPoints.Add( p1.PianyiXuanzhuan(block));
+                _initialPoints.Add( p2.PianyiXuanzhuan(block));
+                _initialPoints.Add( p3.PianyiXuanzhuan(block));
+                _initialPoints.Add( p4.PianyiXuanzhuan(block));
+            }
+            Points = _initialPoints.Distinct(new JwPointComparint()).ToList();
+            if (Points.Count == 3)
+            {
+                parse();
+                IsDirected = true;
+            }
+        }
+
+        public JwDirected(JwwBlock block,List<JwwSen> sens)
+        {
+            _initialPoints = new List<JWPoint>();
+
+            foreach (var sen in sens)
+            {
+                var st = new JWPoint(sen.m_start_x, sen.m_start_y);
+                var en = new JWPoint(sen.m_end_x, sen.m_end_y);
+                _initialPoints.Add(st.PianyiXuanzhuan(block));
+                _initialPoints.Add(en.PianyiXuanzhuan(block));
+            }
+            Points = _initialPoints.Distinct(new JwPointComparint()).ToList();
+            if (Points.Count == 3)
+            {
+                parse();
+                IsDirected = true;
+                
+            }
+        }
+
+
+        public JwDirected(JwBlock block)
+        {
+            Points = new List<JWPoint>();
+            foreach (var p in block.BlockPoint)
+            {
+                Points.Add(new JWPoint(p.X, p.Y));
+            }
+            if(Points.Count== 3)
+            {
+                parse();
+                IsDirected = true;
+            }
+        }
+
+        public JwDirected(JWPoint a, JWPoint b,JWPoint c)
+        {
+            Points= new List<JWPoint>();
+            Points.Add(a);
+            Points.Add(b);
+            Points.Add(c);
+            parse();
+            IsDirected = true;  
+        }
+
+        public bool IsValidDirected = false;
+
+        public TaggDirect TaggDirect;
+
+        /// <summary>
+        /// 切割目标beam 的类型
+        /// </summary>
+        public BeamDirectionType QieGeBeamDirectionType;
+
+        /// <summary>
+        /// 上面水平 则  为 X  垂直 Y
+        /// </summary>
+        public double? QieGeZhi;
+
+        /// <summary>
+        /// 和梁接触 垂直的X 水平的为Y
+        /// </summary>
+        public double? JiaohuiZhi; 
+
+        /// <summary>
+        /// 暂时仅考虑 水平 或垂直 其他方向不考虑
+        /// </summary>
+        private void parse()
+        {
+            var lstx = Points.GroupBy(t => t.X).ToList();
+            var lsty = Points.GroupBy(t => t.Y).ToList();
+
+            //if (lstx.Count == 2 || lstx.Count == 2)
+            //{
+            //    IsValidDirected= true;
+
+            //}
+            if (lstx.Count == 2)
+            {
+                IsValidDirected = true;
+                QieGeBeamDirectionType = BeamDirectionType.Vertical;
+                var tg = lstx.Where(t=>t.Count()==2).FirstOrDefault();
+                var og=lstx.Where(t=>t.Count()==1).FirstOrDefault();
+                if(og?.Key>tg?.Key)
+                {
+                    TaggDirect = TaggDirect.Right;
+                }
+                else
+                {
+                    TaggDirect=TaggDirect.Left;
+                }
+                DirectPoint = og.FirstOrDefault();
+                QieGeZhi = DirectPoint?.Y;
+                JiaohuiZhi = og.Key;
+            }
+
+            if(lsty.Count == 2)
+            {
+                IsValidDirected = true;
+                QieGeBeamDirectionType = BeamDirectionType.Horizontal;
+                var tg = lsty.Where(t => t.Count() == 2).FirstOrDefault();
+                var og = lsty.Where(t => t.Count() == 1).FirstOrDefault();
+                if (og?.Key > tg?.Key)
+                {
+                    TaggDirect = TaggDirect.Up;
+                }
+                else
+                {
+                    TaggDirect = TaggDirect.Down;
+                }
+                DirectPoint = og.FirstOrDefault();
+                QieGeZhi = DirectPoint?.X;
+                JiaohuiZhi = og.Key;
+            }
+
+        }
+
+        public string GetJwDirectString()
+        {
+            return string.Format("{0}-{1}-{2}", TaggDirect, JiaohuiZhi,QieGeZhi);
+        }
+
+        public JwCutting ToData()
+        {
+            JwCutting cutting = new JwCutting();
+            cutting.Id = Guid.NewGuid().ToString();
+            if (IsDirected)
+            {
+                cutting.FirstPoint= Points[0].ToPoint();
+                cutting.SecondPoint= Points[1].ToPoint();
+                cutting.ThirdPoint= Points[2].ToPoint();
+                return cutting;
+            }
+            else
+            {
+                return null;
+            }
+
+        }
+
+        public JwwData ToJwwData()
+        {
+            JwwSolid solid = new JwwSolid();
+            solid.m_nLayer = (int)DrawShapeType.Cutting + 1;
+            solid.m_nPenColor = (int)DrawShapeType.Cutting;
+            solid.m_start_x= Points[0].X;
+            solid.m_start_y= Points[0].Y;
+            solid.m_end_x= Points[1].X;
+            solid.m_end_y= Points[1].Y;
+            solid.m_DPoint2_x= Points[2].X;
+            solid.m_DPoint2_y= Points[2].Y;
+            solid.m_DPoint3_x= Points[2].X;
+            solid.m_DPoint3_y= Points[2].Y;
+            return solid;
+        }
+    }
+
+    public class JwDirectedComparint : IEqualityComparer<JwDirected>
+    {
+        public bool Equals(JwDirected? x, JwDirected? y)
+        {
+            if (object.ReferenceEquals(x, null))
+            {
+                return false;
+            }
+            if (object.ReferenceEquals(y, null))
+            {
+                return false;
+            }
+            else
+            {
+                if (GetHashCode(x) == GetHashCode(y))
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+
+        public int GetHashCode(JwDirected obj)
+        {
+            return obj.GetJwDirectString().GetHashCode();
+        }
+
+    }
+
+    public class JwSenComparint : IEqualityComparer<JwwSen>
+    {
+        public bool Equals(JwwSen? x, JwwSen? y)
+        {
+            if (object.ReferenceEquals(x, null))
+            {
+                return false;
+            }
+            if (object.ReferenceEquals(y, null))
+            {
+                return false;
+            }
+            else
+            {
+                if (GetHashCode(x) == GetHashCode(y))
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+
+        public int GetHashCode(JwwSen obj)
+        {
+            return obj.ToString().GetHashCode();
+        }
+
+    }
+}

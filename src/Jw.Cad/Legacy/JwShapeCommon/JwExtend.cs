@@ -1,0 +1,1034 @@
+using JwShapeCommon.Compat; // 旧版 using Sunny.UI 带来的 First()/Last() 语义，见 SunnyCollectionsCompat
+using JwCore;
+using JwShapeCommon.Jwbase;
+using JwShapeCommon.Model;
+using JwwHelper;
+using NetTopologySuite.Geometries;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+//using System.Drawing;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace JwShapeCommon
+{
+    public static class JwExtend
+    {
+
+        public static FourPoints GetLeftTopRightBottom(this List<JWPoint> lst)
+        {
+            if (lst.Count > 0)
+            {
+                FourPoints z = new FourPoints();
+                z.HasValue = true;
+                var lefttop = lst.OrderBy(t => t.X).ToList().OrderByDescending(t => t.Y).ToList().First();
+
+                var rigthtop = lst.OrderByDescending(t => t.X).ToList().OrderByDescending(t => t.Y).First();
+
+                var leftbottom = lst.OrderBy(t => t.X).ToList().OrderBy(t => t.Y).ToList().First();
+
+                var rightbottom = lst.OrderByDescending(t => t.X).ToList().OrderBy(t => t.Y).ToList().First();
+                z.TopLeft = lefttop;
+                z.TopRight = rigthtop;
+                z.BottomLeft = leftbottom;
+                z.BottomRight = rightbottom;
+                return z;
+            }
+            else
+            {
+                return new FourPoints();
+            }
+
+        }
+
+        public static List<JWPoint> GetLinesPoints(this List<JwXian> lst)
+        {
+            List<JWPoint> points = new List<JWPoint>();
+            if (lst.Count > 0)
+            {
+                foreach (var line in lst)
+                {
+                    points = points.Union(line.GetXianPoints(), new JwPointComparint()).ToList();
+                }
+                return points;
+            }
+            else
+            {
+                return points;
+            }
+        }
+
+        /// <summary>
+        /// 通用jwsquarebase 转对应数据
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        public static T DataToJw<T>(this JwSquareBaseData data, JwDrawing drawing) where T : JwSquareBase
+        {
+            T reobj = (T)System.Activator.CreateInstance(typeof(T), drawing);
+            reobj.TopLeft = new JWPoint(data.Location!.X, data.Location!.Y);
+            reobj.TopRight = new JWPoint(data.Location!.X + data.Width, data.Location!.Y);
+            reobj.BottomLeft = new JWPoint(data.Location!.X, data.Location!.Y - data.Height);
+            reobj.BottomRight = new JWPoint(reobj.TopRight.X, reobj.BottomLeft.Y);
+            reobj.DirectionType = data.DirectionType;
+            reobj.CenterPoint = new JWPoint(data.Location!.X + data.Width / 2, data.Location!.Y - data.Height / 2);
+            reobj.Height = data.Height;
+            reobj.Width = data.Width;
+            reobj.Center = data.DirectionType == BeamDirectionType.Horizontal ? reobj.CenterPoint.Y : reobj.CenterPoint.X;
+            reobj.HeightScale = data.Scale * Math.Round(data.Height, 2);
+            reobj.WidthScale = data.Scale * Math.Round(data.Width, 2);
+
+            return reobj;
+        }
+
+        /// <summary>
+        /// 2026年3月17日 
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        public static JwPillar DataToJwPillar(this JwPillarData data, JwDrawing drawing)
+        {
+            if (data.BaseType == PillarBaseType.KPillar)
+            {
+                JWPoint la = new JWPoint(data.FirstLocation!.X, data.FirstLocation!.Y);
+                JWPoint lb = new JWPoint(data.LastLocation!.X, data.LastLocation!.Y);
+                double ds = data.CenterWidth.HasValue ? data.CenterWidth.Value : 0;
+                JwPillar pillar = new JwPillar(drawing, la, lb, ds);
+                return pillar;
+            }
+            else
+            {
+                JWPoint l = new JWPoint(data.Location.X, data.Location.Y);
+                JwPillar pillar = new JwPillar(drawing, l, l, 0);
+                return pillar;
+            }
+        }
+
+        /// <summary>
+        /// 2026年3月17日
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        public static JwDownPillarMark DataToJwDownPillar(this JwDownPillarData data)
+        {
+            JwDownPillarMark pillar = new JwDownPillarMark
+            {
+                Id = data.Id,
+                Line1 = new JwXian(data.LineAS.ToJwPoint(), data.LineAE.ToJwPoint()),
+                Line2 = new JwXian(data.LineBS.ToJwPoint(), data.LineBE.ToJwPoint()),
+                CenterPoint = data.Location.ToJwPoint(),
+                IsInBeamCenter = true,
+                HasBeam = data.HasBeam,
+                HasPillar = data.HasPillar
+            };
+            return pillar;
+        }
+
+        public static JwBeamVertical DataToJw(this JwBeamVerticalData data)
+        {
+            JwBeamVertical vertical = new JwBeamVertical
+            {
+                ParentBeamId = data.JwBeamDataId,
+                Center = data.Center,
+                HasLast = data.HasLast,
+                HasPre = data.HasPre
+            };
+            return vertical;
+
+        }
+
+        public static JwLianjie DataToLianjie(this JwLianjieData data, JwDrawing drawing)
+        {
+            JwLianjie lianjie = new JwLianjie(drawing);
+            lianjie.Start = new JWPoint(data.Start.X, data.Start.Y);
+            lianjie.StartOriginal = new JWPoint(data.StartOriginal.X, data.StartOriginal.Y);
+            lianjie.EndOriginal = new JWPoint(data.EndOriginal.X, data.EndOriginal.Y);
+            lianjie.End = new JWPoint(data.End.X, data.End.Y);
+            lianjie.Length = data.Length;
+            lianjie.Id = data.Id;
+            lianjie.HasEndChange = data.HasEndChange;
+            lianjie.HasStartChange = data.HasStartChange;
+            lianjie.VPLStartPosition = data.VPLStartPosition;
+            lianjie.VPLEndPosition = data.VPLEndPosition;
+            //lianjie.
+            return lianjie;
+        }
+
+        public static JwHole DataToHole(this JwHoleData data, JwDrawing drawing)
+        {
+            JwHole hole = new JwHole(drawing)
+            {
+                HasBottom = data.HasBottom,
+                HasCenter = data.HasCenter,
+                HasTop = data.HasTop,
+                HasLocationCenter = false,
+                FirstCreateFrom = data.FirstCreateFrom,
+                ChangeFrom = data.ChangeFrom,
+                IsEnd = data.IsEnd,
+                HasPreLinkHole = data.HasPreLinkHole,
+                HasBhLinkHole = data.HasBhLinkHole,
+                IsStart = data.IsStart,
+                HoleType = data.HoleType,
+                Id = data.Id,
+                KongNum = data.KongNum,
+                Location = new JWPoint(data.Location.X, data.Location.Y),
+                IsMachining = data.IsMachining,
+            };
+            if (data.HasBhLinkHole)
+            {
+                int i = 0;
+            }
+            return hole;
+        }
+
+        /// <summary>
+        /// block 转数据
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="width"></param>
+        /// <param name="height"></param>
+        /// <param name="scale"></param>
+        /// <returns></returns>
+        public static JwBlock DataToJwBlock(this Point data, double width, double height, JwDrawing drawing)
+        {
+            JwBlock reobj = new JwBlock(drawing);
+            double scale = drawing.Scale;
+            reobj.TopLeft = new JWPoint(data.X, data.Y);
+            reobj.TopRight = new JWPoint(data!.X + width, data!.Y);
+            reobj.BottomLeft = new JWPoint(data!.X, data!.Y - height);
+            reobj.BottomRight = new JWPoint(reobj.TopRight.X, reobj.BottomLeft.Y);
+            //reobj.DirectionType = data.DirectionType;
+            reobj.CenterPoint = new JWPoint(data.X + width / 2, data.Y - height / 2);
+            reobj.Height = height;
+            reobj.Width = width;
+
+            reobj.HeightScale = scale * Math.Round(height, 2);
+            reobj.WidthScale = scale * Math.Round(width, 2);
+            if (reobj.HeightScale == reobj.WidthScale)
+            {
+                reobj.Iszhengfangxing = true;
+            }
+
+            reobj.DirectionType = width >= height ? BeamDirectionType.Horizontal : BeamDirectionType.Vertical;
+            reobj.Center = reobj.DirectionType == BeamDirectionType.Horizontal ? reobj.CenterPoint.Y : reobj.CenterPoint.X;
+
+            return reobj;
+        }
+
+        /// <summary>
+        /// 数据转canvas
+        /// 2026年3月16日 pillar转jwpillar需要重构
+        /// 只需要中心点来生成jwblock
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        public static JwCanvas DataToCanvas(this JwProjectSubData data, ExportSettings export = null, ParseSettings parseSettings = null)
+        {
+            // 移植：旧版在这里把缩尺写进静态变量 JwFileConsts.JwScale，K 柱种类等则沿用“上一次解析”留下的静态设定。
+            // 现在用本层保存的缩尺和设定新建图纸上下文。
+            var biaochi = string.IsNullOrEmpty(data.Biaochi) ? 0 : Convert.ToDouble(data.Biaochi);
+            // 解析設定：该层导入时使用的设定（由调用方传入，保存在楼层上）；没有时用该层保存的 K 柱种类等。
+            var drawing = new JwDrawing(biaochi > 0 ? biaochi : data.Scale, parseSettings ?? new ParseSettings
+            {
+                Ktype = data.KPillarType,
+                LjCompentType = data.LianjieCompentType,
+                MinimalStrategy = data.MinimalStrategy,
+            }, export);
+            JwCanvas reobj = new JwCanvas(drawing);
+            reobj.TopLeft = new JWPoint(data.Location!.X, data.Location!.Y);
+            reobj.TopRight = new JWPoint(data.Location!.X + data.Width, data.Location!.Y);
+            reobj.BottomLeft = new JWPoint(data.Location!.X, data.Location!.Y - data.Height);
+            reobj.BottomRight = new JWPoint(reobj.TopRight.X, reobj.BottomLeft.Y);
+            reobj.DirectionType = data.DirectionType;
+            reobj.CenterPoint = new JWPoint(data.Location!.X + data.Width / 2, data.Location!.Y - data.Height / 2);
+            reobj.Height = data.Height;
+            reobj.Width = data.Width;
+            reobj.Center = data.DirectionType == BeamDirectionType.Horizontal ? reobj.CenterPoint.Y : reobj.CenterPoint.X;
+            reobj.HeightScale = data.Scale * Math.Round(data.Height, 2);
+            reobj.WidthScale = data.Scale * Math.Round(data.Width, 2);
+            reobj.BBCount = data.BCount;
+            reobj.BGCount = data.BGCount;
+            reobj.PillarCount = data.PillarCount;
+            reobj.KPillarCount = data.KPillarCount;
+            reobj.SinglePillarCount = data.SinglePillarCount;
+            reobj.Scale = string.IsNullOrEmpty(data.Biaochi) ? 0 : Convert.ToDouble(data.Biaochi);
+            // （旧版此处：JwFileConsts.JwScale = reobj.Scale;）
+            reobj.HorizontalBeamsCount = data.HorizontalBeamsCount;
+            reobj.VerticalBeamsCount = data.VerticalBeamsCount;
+            reobj.KPillarType = data.KPillarType;
+            reobj.Beams = new List<JwBeam>();
+            reobj.FloorName = data.FloorName;
+            reobj.LianjieCompentType=data.LianjieCompentType;
+            if (data.BeamCount > 0)
+            {
+                foreach (var bm in data.JwBeamDatas)
+                {
+                    var jwbm = bm.DataToJw<JwBeam>(drawing);
+                    jwbm.BeamCode = bm.BeamCode;
+                    jwbm.HasQieGe = bm.HasQieGe;
+                    jwbm.IsParentBeam = bm.IsParentBeam;
+                    jwbm.IsQiegeBeam = bm.IsQiegeBeam;
+                    jwbm.QieGeCount = bm.QieGeCount;
+                    jwbm.Id = bm.Id;
+                    jwbm.XXLength = bm.XXLength;
+                    jwbm.Length = bm.Length;
+                    jwbm.HasStartSide = bm.HasStartSide;
+                    jwbm.HasEndSide = bm.HasEndSide;
+                    jwbm.StartTelosType = bm.StartTelosType;
+                    jwbm.EndTelosType = bm.EndTelosType;
+                    jwbm.StartCenter = bm.StartCenter;
+                    jwbm.EndCenter = bm.EndCenter;
+                    jwbm.GongQu = bm.GongQu;
+                    jwbm.HasBFG = bm.HasBFG;
+                    jwbm.BaiFangGTBDistance = bm.BaiFangGTBDistance;
+                    jwbm.InitialBeamCode = bm.InitialBeamCode;
+                    jwbm.HasCsv = bm.HasCsv;
+                    jwbm.Jiaodu = bm.Jiaodu;
+                    jwbm.CenterPoint = new JWPoint(bm.CenterPoint!.X, bm.CenterPoint!.Y);
+                    //jwbm.HasEndSide=bm.has
+                    if (bm.JwHoles.Count > 0)
+                    {
+                        foreach (var hb in bm.JwHoles)
+                        {
+                            jwbm.Holes.Add(hb.DataToHole(drawing));
+                        }
+                    }
+                    if (bm.JwBeamVerticalDatas.Count > 0)
+                    {
+                        foreach (var vb in bm.JwBeamVerticalDatas)
+                        {
+                            jwbm.Baifangs.Add(vb.DataToJw());
+                        }
+                    }
+                    if (jwbm.DirectionType == BeamDirectionType.Horizontal)
+                    {
+                        jwbm.AbsolutePD = jwbm.TopLeft.X;
+                    }
+                    else
+                    {
+                        jwbm.AbsolutePD = jwbm.TopLeft.Y;
+                    }
+                    reobj.Beams.Add(jwbm);
+                }
+            }
+            if (reobj.Beams.Count > 0)
+            {
+                reobj.HorizontalBeams = reobj.Beams.Where(t => t.DirectionType == BeamDirectionType.Horizontal).ToList();
+                reobj.VerticalBeams = reobj.Beams.Where(t => t.DirectionType == BeamDirectionType.Vertical).ToList();
+            }
+            reobj.Pillars = new List<JwPillar>();
+            if (data.JwPillarDatas.Count > 0)
+            {
+                foreach (var bp in data.JwPillarDatas)
+                {
+                    //var jwbm = bp.DataToJw<JwPillar>();
+                    //jwbm.PillarCode = bp.PillarCode;
+                    //jwbm.Id = bp.Id;
+                    //jwbm.BaseType = bp.BaseType;
+                    //jwbm.Blocks = new List<JwBlock>();
+                    //if (jwbm.BaseType == PillarBaseType.KPillar)
+                    //{
+                    //    jwbm.Blocks.Add(bp.FirstLocation.DataToJwBlock(bp.FirstWidth.Value, bp.FirstHeight.Value, bp.Scale));
+                    //    jwbm.Blocks.Add(bp.CenterLocation.DataToJwBlock(bp.CenterWidth.Value, bp.CenterHeight.Value, bp.Scale));
+                    //    jwbm.Blocks.Add(bp.LastLocation.DataToJwBlock(bp.LastWidth.Value, bp.LastHeight.Value, bp.Scale));
+                    //}
+                    //else
+                    //{
+                    //    jwbm.Blocks.Add(bp.Location.DataToJwBlock(bp.Width, bp.Height, bp.Scale));
+                    //}
+                    var jwbm = bp.DataToJwPillar(drawing);
+                    reobj.Pillars.Add(jwbm);
+                }
+            }
+            //2026年3月17日 增加downpillar数据转换
+            if (data.JwDownPillarDatas.Count > 0)
+            {
+                reobj.JwDownPillarDatas = new List<JwDownPillarMark>();
+                foreach (var dp in data.JwDownPillarDatas)
+                {
+                    var jwdp = dp.DataToJwDownPillar();
+                    reobj.JwDownPillarDatas.Add(jwdp);
+                }
+            }
+
+            reobj.LinkParts = new List<JwLinkPart>();
+            if (data.JwLinkPartDatas.Count > 0)
+            {
+                foreach (var lp in data.JwLinkPartDatas)
+                {
+                    JwLinkPart jwLink = new JwLinkPart();
+                    jwLink.BjCenterPoint = new JWPoint(lp.Location!.X, lp.Location!.Y);
+                    jwLink.IsLianjie = lp.IsLianjie;
+                    jwLink.BujianName = lp.BujianName;
+                    jwLink.BeamId = lp.BeamId;
+                    jwLink.Directed = lp.Directed;
+                    jwLink.GouJianType = lp.GouJianType;
+                    jwLink.IsNoBeam = lp.IsNoBeam;
+                    jwLink.Id = lp.Id;
+                    reobj.LinkParts.Add(jwLink);
+                }
+            }
+
+            if (data.JwLianjieDatas.Count > 0)
+            {
+                foreach (var lianjie in data.JwLianjieDatas)
+                {
+                    JwLianjie jlj = lianjie.DataToLianjie(drawing);
+                    reobj.LianjieLsts.Add(jlj);
+                }
+            }
+            reobj.Directeds = new List<JwDirected>();
+            if (data.JwCuttings.Count > 0)
+            {
+                foreach (var cutting in data.JwCuttings)
+                {
+                    List<JWPoint> points = new List<JWPoint>();
+                    points.Add(cutting.FirstPoint.ToJwPoint());
+                    points.Add(cutting.SecondPoint.ToJwPoint());
+                    points.Add(cutting.ThirdPoint.ToJwPoint());
+                    JwDirected ct = new JwDirected(points);
+                    reobj.Directeds.Add(ct);
+                }
+            }
+            reobj.AddedHoleMarks = new List<JwAddedHoleMark>();
+            if (data.JwAddedHoles.Count > 0)
+            {
+                foreach (var ah in data.JwAddedHoles)
+                {
+                    JwAddedHoleMark mark = new JwAddedHoleMark();
+                    mark.CenterPoint = new JWPoint(ah.Location.X, ah.Location.Y);
+                    mark.HoleCenter = new JWPoint(ah.HoleCenter.X, ah.HoleCenter.Y);
+                    mark.Line1 = new JwXian(ah.LineAS.ToJwPoint(), ah.LineAE.ToJwPoint());
+                    mark.Line2 = new JwXian(ah.LineBS.ToJwPoint(), ah.LineBE.ToJwPoint());
+                    mark.HasBeam = ah.HasBeam;
+                    mark.Id = ah.Id;
+                    reobj.AddedHoleMarks.Add(mark);
+                }
+            }
+            reobj.IsFromData = true;
+            reobj.JwProjectSubData = data;
+            //增加逻辑 动态生成beamcode 好像不需要
+            //reobj.Revision();
+            return reobj;
+        }
+
+        public static JwBeam BeamDataToJwBeam(this JwBeamData bm, JwDrawing drawing)
+        {
+            var jwbm = bm.DataToJw<JwBeam>(drawing);
+            jwbm.BeamCode = bm.BeamCode;
+            jwbm.HasQieGe = bm.HasQieGe;
+            jwbm.IsParentBeam = bm.IsParentBeam;
+            jwbm.IsQiegeBeam = bm.IsQiegeBeam;
+            jwbm.QieGeCount = bm.QieGeCount;
+            jwbm.Id = bm.Id;
+            jwbm.XXLength = bm.XXLength;
+            jwbm.Length = bm.Length;
+            jwbm.HasStartSide = bm.HasStartSide;
+            jwbm.HasEndSide = bm.HasEndSide;
+            jwbm.StartTelosType = bm.StartTelosType;
+            jwbm.EndTelosType = bm.EndTelosType;
+            jwbm.StartCenter = bm.StartCenter;
+            jwbm.EndCenter = bm.EndCenter;
+            jwbm.GongQu = bm.GongQu;
+            jwbm.HasBFG = bm.HasBFG;
+            jwbm.BaiFangGTBDistance = bm.BaiFangGTBDistance;
+            jwbm.InitialBeamCode = bm.InitialBeamCode;
+            jwbm.HasCsv = bm.HasCsv;
+            //jwbm.HasEndSide=bm.has
+            if (bm.JwHoles.Count > 0)
+            {
+                foreach (var hb in bm.JwHoles)
+                {
+                    jwbm.Holes.Add(hb.DataToHole(drawing));
+                }
+            }
+            if (bm.JwBeamVerticalDatas.Count > 0)
+            {
+                foreach (var vb in bm.JwBeamVerticalDatas)
+                {
+                    jwbm.Baifangs.Add(vb.DataToJw());
+                }
+            }
+            if (jwbm.DirectionType == BeamDirectionType.Horizontal)
+            {
+                jwbm.AbsolutePD = jwbm.TopLeft.X;
+            }
+            else
+            {
+                jwbm.AbsolutePD = jwbm.TopLeft.Y;
+            }
+            return jwbm;
+        }
+
+        /// <summary>
+        /// 增加孔
+        /// </summary>
+        /// <param name="beam"></param>
+        /// <param name="hole"></param>
+        public static void AddHole(this JwBeam beam, JwKongZu hole)
+        {
+            if (beam.DirectionType == BeamDirectionType.Horizontal)
+            {
+                beam.Kongzus.Add(hole);
+                beam.Kongzus = beam.Kongzus.OrderBy(t => t.Position.X).ToList();
+                double sp = beam.TopLeft.X;
+                double per = beam.TopLeft.X;
+                foreach (var k in beam.Kongzus)
+                {
+                    k.StartDistance = k.Position.X - sp;
+                    k.PreDistance = k.Position.X - per;
+                    per = k.Position.X;
+                }
+            }
+            else
+            {
+                beam.Kongzus.Add(hole);
+                beam.Kongzus = beam.Kongzus.OrderBy(t => t.Position.Y).ToList();
+                double sp = beam.TopLeft.Y;
+                double per = beam.TopLeft.Y;
+                foreach (var k in beam.Kongzus)
+                {
+                    k.StartDistance = k.Position.Y - sp;
+                    k.PreDistance = k.Position.Y - per;
+                    per = k.Position.Y;
+                }
+            }
+        }
+
+        public static void AddAnyHole(
+       this JwBeam beam,
+       JWPoint location,
+       HoleCreateFrom createFrom,
+       JWPoint? locationcenter = null,
+       bool isStart = false,
+       bool isEnd = false)
+        {
+            AddAnyHoleCore(beam, location, createFrom, locationcenter, isStart, isEnd, false);
+        }
+
+        public static JwHole AddAnyHoleReturn(
+      this JwBeam beam,
+      JWPoint location,
+      HoleCreateFrom createFrom,
+      JWPoint? locationcenter = null,
+      bool isStart = false,
+      bool isEnd = false)
+        {
+            return AddAnyHoleCore(beam, location, createFrom, locationcenter, isStart, isEnd, true);
+        }
+
+        private static JwHole AddAnyHoleCore(
+    JwBeam beam,
+    JWPoint location,
+    HoleCreateFrom createFrom,
+    JWPoint? locationcenter,
+    bool isStart,
+    bool isEnd,
+    bool returnHole)
+        {
+            // ① HoleCreateFrom → HasTop/HasCenter/HasBottom 映射表
+            (bool top, bool center, bool bottom) GetFlags(HoleCreateFrom from)
+            {
+                if (beam.Drawing.Settings.MinimalStrategy)
+                {
+                    return from switch
+                    {
+                        HoleCreateFrom.Pillar => (true, true, false),
+                        HoleCreateFrom.DownPillar => (false, true, true),
+                        HoleCreateFrom.JieChu => (false, true, false),
+                        HoleCreateFrom.JieChuG => (false, true, false),
+                        HoleCreateFrom.FengeJ => (false, true, false),
+                        HoleCreateFrom.AddedHole => (true, false, false),
+                        _ => (false, false, false)
+                    };
+                }
+                else
+                {
+                    return from switch
+                    {
+                        HoleCreateFrom.Pillar => (true, true, false),
+                        HoleCreateFrom.DownPillar => (false, true, true),
+                        HoleCreateFrom.JieChu => (true, true, true),
+                        HoleCreateFrom.JieChuG => (false, true, false),
+                        HoleCreateFrom.FengeJ => (false, true, false),
+                        HoleCreateFrom.AddedHole => (true, false, false),
+                        _ => (false, false, false)
+                    };
+                }
+            }
+
+            var flags = GetFlags(createFrom);
+
+            // ② 查找是否已有 hole
+            var existing = beam.Holes.FirstOrDefault(t => t.Location.IsEqualsWithError(location, beam.Drawing.Scale));
+
+            // ============================
+            // ③ 已存在 hole → 合并属性
+            // ============================
+            if (existing != null)
+            {
+                existing.HasTop |= flags.top;
+                existing.HasCenter |= flags.center;
+                existing.HasBottom |= flags.bottom;
+                existing.ChangeFrom = createFrom;
+                // 特殊逻辑
+                if (createFrom == HoleCreateFrom.JieChu)
+                {
+                    existing.KongNum = 4;
+                    existing.changeByOther(HoleCreateFrom.FengeJ);
+                }
+
+                return returnHole ? existing : null;
+            }
+
+            // ============================
+            // ④ 不存在 hole → 创建新 hole
+            // ============================
+            var hh = new JwHole(beam.Drawing, location, createFrom, locationcenter, isStart, isEnd)
+            {
+                Beam = beam
+            };
+
+            hh.HoleCenter = beam.DirectionType == BeamDirectionType.Horizontal
+                ? location.X
+                : location.Y;
+
+            hh.HasTop = flags.top;
+            hh.HasCenter = flags.center;
+            hh.HasBottom = flags.bottom;
+
+            if (createFrom == HoleCreateFrom.JieChu)
+            {
+                hh.KongNum = 4;
+            }
+
+            beam.Holes.Add(hh);
+            return returnHole ? hh : null;
+        }
+
+        /// <summary>
+        /// 2025年4月25日 针对J 记录偏差位置 方便查询下方打连接孔
+        /// </summary>
+        /// <param name="beam"></param>
+        /// <param name="location"></param>
+        /// <param name="pccenter"></param>
+        /// <param name="isStart"></param>
+        /// <param name="isEnd"></param>
+        public static void AddAnyHole(this JwBeam beam, JWPoint location, double pccenter = 0, bool isStart = false, bool isEnd = false)
+        {
+            JwHole hh;
+            if (beam.Holes.Count > 0)
+            {
+                var fh = beam.Holes.Find(t => t.Location == location);
+                if (fh == null)
+                {
+                    hh = new JwHole(beam.Drawing, location, HoleCreateFrom.FengeJ, location, isStart, isEnd);
+                    hh.HoleCenter = pccenter;
+                    beam.Holes.Add(hh);
+                }
+                else
+                {
+                    hh = new JwHole(beam.Drawing, location, HoleCreateFrom.FengeJ, location, isStart, isEnd);
+                    hh.HoleCenter = pccenter;
+                    beam.Holes.Add(hh);
+                }
+            }
+            else
+            {
+                hh = new JwHole(beam.Drawing, location, HoleCreateFrom.FengeJ, location, isStart, isEnd);
+                //if (beam.DirectionType == BeamDirectionType.Horizontal)
+                //{
+                //    hh.HoleCenter = location.X;
+                //}
+                //if (beam.DirectionType == BeamDirectionType.Vertical)
+                //{
+                //    hh.HoleCenter = location.Y;
+                //}
+                hh.HoleCenter = pccenter;
+                beam.Holes.Add(hh);
+            }
+
+        }
+
+        public static List<JwComboData> CreateBindList<T>()
+        {
+            List<JwComboData> lst = new List<JwComboData>();
+            Type type = typeof(T);
+            var vs = Enum.GetValues(type);
+            var ns = Enum.GetNames(type);
+            foreach (var it in vs)
+            {
+                JwComboData data = new JwComboData();
+                data.Name = Enum.GetName(type, it);
+                data.Value = Convert.ToInt32(it);
+                lst.Add(data);
+            }
+            return lst;
+        }
+
+        /// <summary>
+        /// 两个线比较 判定是否有重叠部分 有的化返回合并后的线
+        /// </summary>
+        /// <param name="left"></param>
+        /// <param name="right"></param>
+        /// <returns></returns>
+        public static OverlappingXian LineOverLapping(this JwXian left, JwXian right)
+        {
+            OverlappingXian overlapping = new OverlappingXian
+            {
+                IsOverLapping = false
+            };
+            double startx = 0;
+            double endx = 0;
+            double starty = 0;
+            double endy = 0;
+            if (left.DirectionType == right.DirectionType)
+            {
+                if (left.DirectionType == BeamDirectionType.Horizontal)
+                {
+
+                    if (right.Pone.Y != left.Pone.Y)
+                    {
+                        overlapping.IsOverLapping = false;
+                    }
+                    else
+                    {
+                        starty = endy = left.Pone.Y;
+                        startx = Math.Min(left.MinX(), right.MinX());
+                        endx = Math.Max(left.MaxX(), right.MaxX());
+                        if ((right.Pone.X >= left.Pone.X && right.Pone.X <= left.Ptwo.X) || ((right.Ptwo.X >= left.Pone.X && right.Ptwo.X <= left.Ptwo.X)))
+                        {
+                            overlapping.IsOverLapping = true;
+                            left.IsMerge = true;
+                            right.IsMerge = true;
+
+                        }
+                        else if ((right.Pone.X <= left.Pone.X && right.Ptwo.X >= left.Ptwo.X))
+                        {
+                            overlapping.IsOverLapping = true;
+                            left.IsMerge = true;
+                            right.IsMerge = true;
+                        }
+                        else
+                        {
+                            overlapping.IsOverLapping = false;
+                        }
+                    }
+                }
+                else
+                {
+                    if (right.Pone.X != left.Pone.X)
+                    {
+                        overlapping.IsOverLapping = false;
+                    }
+                    else
+                    {
+                        startx = endx = left.Pone.X;
+                        starty = Math.Min(left.MinY(), right.MinY());
+                        endy = Math.Max(left.MaxY(), right.MaxY());
+                        if ((right.Pone.Y <= left.Pone.Y && right.Pone.Y >= left.Ptwo.Y) || ((right.Ptwo.Y <= left.Pone.Y && right.Ptwo.Y >= left.Ptwo.Y)))
+                        {
+                            overlapping.IsOverLapping = true;
+                            left.IsMerge = true;
+                            right.IsMerge = true;
+                        }
+                        else if (right.Pone.Y >= left.Pone.Y && right.Ptwo.Y <= left.Ptwo.Y)
+                        {
+                            overlapping.IsOverLapping = true;
+                            left.IsMerge = true;
+                            right.IsMerge = true;
+                        }
+                        else
+                        {
+                            overlapping.IsOverLapping = false;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                overlapping.IsOverLapping = false;
+            }
+            var startp = new JWPoint(startx, starty);
+            var endp = new JWPoint(endx, endy);
+            overlapping.MergeLine = new JwXian(startp, endp);
+            return overlapping;
+        }
+
+        /// <summary>
+        /// 判断相交的焦点
+        /// </summary>
+        /// <param name="l1"></param>
+        /// <param name="l2"></param>
+        /// <returns></returns>
+        public static JWPoint? Intersect(JwXian l1, JwXian l2)
+        {
+            double a1 = l1.Ptwo.Y - l1.Pone.Y;
+            double b1 = l1.Pone.X - l1.Ptwo.X;
+            double c1 = a1 * l1.Pone.X + b1 * l1.Pone.Y;
+
+            double a2 = l2.Ptwo.Y - l2.Pone.Y;
+            double b2 = l2.Pone.X - l2.Ptwo.X;
+            double c2 = a2 * l2.Pone.X + b2 * l2.Pone.Y;
+
+            double delta = a1 * b2 - a2 * b1;
+            if (delta == 0)
+            {
+                return null; // 平行或重合
+            }
+            double x = (b2 * c1 - b1 * c2) / delta;
+            double y = (a1 * c2 - a2 * c1) / delta;
+            if (IsBetween(l1.Pone, l1.Ptwo, new JWPoint(x, y)) && IsBetween(l2.Pone, l2.Ptwo, new JWPoint(x, y)))
+            {
+                return new JWPoint(x, y);
+            }
+
+            return new JWPoint(x, y);
+        }
+
+
+
+
+        /// <summary>
+        /// 判断四个点是否组成矩形
+        /// </summary>
+        /// <param name="p1"></param>
+        /// <param name="p2"></param>
+        /// <param name="p3"></param>
+        /// <param name="p4"></param>
+        /// <returns></returns>
+        public static bool IsRectangle(JWPoint p1, JWPoint p2, JWPoint p3, JWPoint p4)
+        {
+            double d2 = Distance(p1, p2);
+            double d3 = Distance(p1, p3);
+            double d4 = Distance(p1, p4);
+
+            if (d2 == d3 && 2 * d2 == d4 && Distance(p2, p4) == Distance(p3, p4))
+            {
+                return true;
+            }
+            if (d2 == d4 && 2 * d2 == d3 && Distance(p2, p3) == Distance(p3, p4))
+            {
+                return true;
+            }
+            if (d3 == d4 && 2 * d3 == d2 && Distance(p2, p3) == Distance(p2, p4))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public static bool IsBetween(JWPoint start, JWPoint end, JWPoint p)
+        {
+            return (Math.Min(start.X, end.X) <= p.X && p.X <= Math.Max(start.X, end.X)) &&
+                   (Math.Min(start.Y, end.Y) <= p.Y && p.Y <= Math.Max(start.Y, end.Y));
+        }
+
+        public static double Distance(JWPoint p1, JWPoint p2)
+        {
+            return Math.Sqrt(Math.Pow(p1.X - p2.X, 2) + Math.Pow(p1.Y - p2.Y, 2));
+        }
+
+        // 判断点是否在直线上
+        public static bool LineContainsPoint(JwXian line, JWPoint point)
+        {
+            double minX = Math.Min(line.Pone.X, line.Ptwo.X);
+            double maxX = Math.Max(line.Pone.X, line.Ptwo.X);
+            double minY = Math.Min(line.Pone.Y, line.Ptwo.Y);
+            double maxY = Math.Max(line.Pone.Y, line.Ptwo.Y);
+            return point.X >= minX && point.X <= maxX && point.Y >= minY && point.Y <= maxY;
+        }
+
+        /// <summary>
+        /// 旋转偏移
+        /// </summary>
+        /// <param name="point"></param>
+        /// <param name="block"></param>
+        /// <returns></returns>
+        public static JWPoint PianyiXuanzhuan(this JWPoint point, JwwBlock block)
+        {
+            double angleRadians = block.m_radKaitenKaku;
+
+            double xb = block.m_dBairitsuX;
+            double yb = block.m_dBairitsuY;
+
+            // 旋转公式
+            double rotatedX = point.X * Math.Cos(angleRadians) - point.Y * Math.Sin(angleRadians);
+            double rotatedY = point.X * Math.Sin(angleRadians) + point.Y * Math.Cos(angleRadians);
+
+            // 平移
+            double newX = rotatedX * xb + block.m_DPKijunTen_x;
+            double newY = rotatedY * yb + block.m_DPKijunTen_y;
+            return new JWPoint(newX, newY);
+        }
+
+        public static double LineAngle(this JWPoint P1, JWPoint P2)
+        {
+            double deltaY = P2.Y - P1.Y;
+            double deltaX = P2.X - P1.X;
+            double angleInRadians = Math.Atan2(deltaY, deltaX);
+            double angleInDegrees = angleInRadians * (180.0 / Math.PI);
+            if (angleInDegrees < 0)
+            {
+                angleInDegrees += 360;
+            }
+            return angleInDegrees;
+        }
+
+        public static JWPoint ToJwPoint(this Coordinate coordinate)
+        {
+            return new JWPoint(coordinate.X, coordinate.Y);
+        }
+
+        public static JWPoint ToJwPoint(this Point point)
+        {
+            return new JWPoint(point.X, point.Y);
+        }
+
+        public static bool DoubleEqual(double a, double b)
+        {
+            const double eps = 1e-4;
+            return Math.Abs(a - b) < eps;
+        }
+
+        public static string GetDescription(this Enum value)
+        {
+            var field = value.GetType().GetField(value.ToString());
+            var attr = field.GetCustomAttributes(typeof(DescriptionAttribute), false)
+                            .FirstOrDefault() as DescriptionAttribute;
+            return attr?.Description ?? value.ToString();
+        }
+
+        public static double GetNearCenter(List<double> centers, double target)
+        {
+            if (centers == null || centers.Count == 0)
+                throw new ArgumentException("Center list cannot be null or empty.");
+            double nearest = centers[0];
+            double minDistance = Math.Abs(nearest - target);
+            foreach (var center in centers)
+            {
+                double distance = Math.Abs(center - target);
+                if (distance < minDistance)
+                {
+                    minDistance = distance;
+                    nearest = center;
+                }
+            }
+            return nearest;
+        }
+
+        public static bool TryFindClosest(
+    List<double> list, double scale,
+    double target,
+    out double closest)
+        {
+            var maxDiff = JwConstants.PillarCenterMax / scale;
+            closest = default;
+
+            if (list == null || list.Count == 0)
+                return false;
+
+            double best = list[0];
+            double bestDiff = Math.Abs(best - target);
+
+            foreach (var x in list)
+            {
+                double diff = Math.Abs(x - target);
+                if (diff < bestDiff)
+                {
+                    bestDiff = diff;
+                    best = x;
+                }
+            }
+
+            if (bestDiff <= maxDiff)
+            {
+                closest = best;
+                return true;
+            }
+
+            return false;
+        }
+
+        public static readonly char[] Letters =
+{
+    'A','B','C','D','E','F','G','H',
+    'J','K','L','M','N',
+    'P','Q','R','S','T','U','V','W','X','Y','Z'
+};
+        public static string GetSuffix(int index)
+        {
+            // index 从 0 开始：0=A, 1=B...
+            int baseN = Letters.Length;
+            List<char> chars = new List<char>();
+
+            index++; // 让 0 对应 A，而不是空
+
+            while (index > 0)
+            {
+                index--;
+                chars.Add(Letters[index % baseN]);
+                index /= baseN;
+            }
+
+            chars.Reverse();
+            return new string(chars.ToArray());
+        }
+
+        public static string GetSuffixK(int index)
+        {
+            // index 从 0 开始：0=A, 1=B...
+            int baseN = Letters.Length;
+            List<char> chars = new List<char>();
+
+            //index++; // 让 0 对应 A，而不是空
+
+            while (index > 0)
+            {
+                index--;
+                chars.Add(Letters[index % baseN]);
+                index /= baseN;
+            }
+
+            chars.Reverse();
+            return new string(chars.ToArray());
+        }
+
+
+        public static JWPoint GetArcEndPoint(JWPoint center, double radius, double startDeg, double sweepDeg)
+        {
+            double endDeg = startDeg + sweepDeg;
+
+            double x = center.X + radius * Math.Cos(endDeg);
+            double y = center.Y + radius * Math.Sin(endDeg);
+
+            return new JWPoint(x, y);
+        }
+
+        /// <summary>
+        /// 传入JW的坐标系 根据缩放频移返回屏幕坐标
+        /// </summary>
+        /// <param name="point"></param>
+        /// <returns></returns>
+        public static System.Drawing.PointF ToChangeCoordinate(this JWPoint point, double zoom, double axisx, double axisy)
+        {
+            var x = point.X * zoom + axisx;
+            var y = axisy - point.Y * zoom;
+            return new System.Drawing.PointF((float)x, (float)y);
+        }
+
+        public static float DegToRad(float deg)
+        {
+            return deg * MathF.PI / 180f;
+        }
+
+        public static float RadToDeg(float rad)
+        {
+            return rad * 180f / MathF.PI;
+        }
+    }
+}

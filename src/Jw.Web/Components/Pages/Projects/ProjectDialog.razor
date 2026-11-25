@@ -1,0 +1,90 @@
+@using Jw.Application.Projects
+@inject ProjectService Service
+@inject UiRunner Ui
+
+<MudDialog>
+    <DialogContent>
+        @if (_model is null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else
+        {
+            <EditForm id="project-form" Model="_model" OnValidSubmit="SaveAsync">
+                <DataAnnotationsValidator />
+                <MudStack Spacing="3">
+                    <MudTextField @bind-Value="_model.Name" For="() => _model.Name" Label="@L["工事名"]" Required="true"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" AutoFocus="true" />
+                    <MudTextField @bind-Value="_model.SiteAddress" For="() => _model.SiteAddress" Label="@L["建設現場住所"]" Required="true"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    <MudSelect T="Guid?" @bind-Value="_model.CustomerId" For="() => _model.CustomerId" Label="@L["顧客"]" Required="true"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter"
+                               HelperText="@L["顧客の解析設定が図面の解析に使われます。"]">
+                        @foreach (var c in _customers)
+                        {
+                            <MudSelectItem T="Guid?" Value="c.Id">@c.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudNumericField T="int" @bind-Value="_model.FloorQuantity" For="() => _model.FloorQuantity" Label="@L["階数"]"
+                                     Min="@Math.Max(1, _model.ParsedQuantity)" Max="200" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                     HelperText="@FloorHelp" />
+                </MudStack>
+            </EditForm>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => MudDialog.Cancel()">@L["キャンセル"]</MudButton>
+        <MudButton ButtonType="ButtonType.Submit" form="project-form" Variant="Variant.Filled" Color="Color.Primary" Disabled="_saving || _model is null">@L["保存"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public Guid? ProjectId { get; set; }
+
+    private ProjectInput? _model;
+    private IReadOnlyList<LookupItem> _customers = [];
+    private bool _saving;
+
+    private string FloorHelp => _model is { ParsedQuantity: > 0 }
+        ? string.Format(L["取り込める図面の階数の上限です。取り込み済み {0} 階より少なくはできません。"], _model.ParsedQuantity)
+        : L["取り込める図面の階数の上限です。"];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var ok = await Ui.RunAsync(async () =>
+        {
+            _customers = await Service.CustomerLookupAsync();
+            _model = ProjectId is null ? new ProjectInput() : await Service.GetForEditAsync(ProjectId.Value);
+        });
+        if (!ok) MudDialog.Cancel();
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        var ok = await Ui.RunAsync(() => Service.SaveAsync(_model!), L["保存しました。"]);
+        _saving = false;
+        if (ok) MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    /// <summary>打开编辑对话框，保存成功返回 true。</summary>
+    public static async Task<bool> ShowAsync(IDialogService dialogs, IStringLocalizer<SharedResource> l, Guid? id)
+    {
+        var parameters = new DialogParameters<ProjectDialog> { { x => x.ProjectId, id } };
+        var dialog = await dialogs.ShowAsync<ProjectDialog>(id is null ? l["工事を追加"] : l["工事を編集"], parameters);
+        var result = await dialog.Result;
+        return result is { Canceled: false };
+    }
+
+    public static async Task<bool> ConfirmDeleteAsync(IDialogService dialogs, IStringLocalizer<SharedResource> l, UiRunner ui,
+        ProjectService service, ProjectListItem item)
+    {
+        var message = item.HasBudget
+            ? string.Format(l["工事「{0}」を削除しますか？この工事の予算も削除されます。"], item.Name)
+            : string.Format(l["工事「{0}」を削除しますか？"], item.Name);
+        var ok = await dialogs.ShowMessageBoxAsync(l["削除の確認"], message, yesText: l["削除する"], cancelText: l["キャンセル"]);
+        if (ok != true) return false;
+        return await ui.RunAsync(() => service.DeleteAsync(item.Id), l["削除しました。"]);
+    }
+}

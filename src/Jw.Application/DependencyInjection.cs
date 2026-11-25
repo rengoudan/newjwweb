@@ -17,6 +17,15 @@ public static class DependencyInjection
 
         services.AddScoped<AuditQueryService>();
         services.AddScoped<CustomerService>();
+        services.AddScoped<CustomerParseSettingService>();
+        services.AddScoped<Projects.ProjectService>();
+        services.AddScoped<Materials.MaterialService>();
+        services.AddScoped<Budgets.BudgetService>();
+        services.AddScoped<Floors.FloorImportService>();
+        services.AddScoped<Floors.FloorService>();
+        services.AddScoped<Floors.ExportService>();
+        services.AddScoped<Floors.FloorSceneService>();
+        services.AddScoped<Floors.WorkbenchService>();
         services.AddScoped<UserAdminService>();
         services.AddScoped<RoleAdminService>();
         return services;

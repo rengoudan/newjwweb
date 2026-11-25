@@ -35,7 +35,12 @@ public sealed class TestHost : IAsyncDisposable
         services.AddLogging();
         services.AddDataProtection(); // 重置密码令牌需要（Web 宿主里自动注册）
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["Seed:AdminPassword"] = "Admin12345" })
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Seed:AdminPassword"] = "Admin12345",
+                ["Storage:Root"] = Path.Combine(Path.GetTempPath(), "jw-tests", Guid.NewGuid().ToString("N")),
+                ["Parse:MaxConcurrency"] = "2",
+            })
             .Build());
         services.AddApplication();
         services.AddInfrastructure(o => o.UseSqlite(connection));
@@ -50,8 +55,12 @@ public sealed class TestHost : IAsyncDisposable
 
         var sp = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
         await DataSeeder.SeedAsync(sp); // SQLite 下走 EnsureCreated
+        foreach (var hosted in sp.GetServices<Microsoft.Extensions.Hosting.IHostedService>())
+            await hosted.StartAsync(CancellationToken.None); // 后台解析
         return new TestHost(connection, sp);
     }
+
+    public static string TestData(string name) => Path.Combine(AppContext.BaseDirectory, "testdata", name);
 
     /// <summary>以指定用户（拥有指定权限）开一个作用域，相当于一次请求或一个 Blazor 连接。</summary>
     public AsyncServiceScope ScopeAs(string userName, params string[] permissions) =>

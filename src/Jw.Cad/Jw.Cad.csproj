@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    图纸解析核心。Legacy/ 下是从旧版 JwCore、JwShapeCommon 移植的解析代码（保留原命名空间，便于逐行对照），
+    改动集中在：解析上下文隔离（JwFileConsts、GlobalEvent）、去掉 WinForms 依赖、修复空引用。
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <NoWarn>$(NoWarn);CS0168;CS0219;CS0162;CS0414;CS0649;CS0169;CS8632;CS0108;CS0114;CS1998;CS0472;CS0618;CA1416</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup>
+    <JwwHelperDir>$(MSBuildThisFileDirectory)..\..\native\JwwHelper\x64\Release\Output\</JwwHelperDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="JwwHelper">
+      <HintPath>$(JwwHelperDir)JwwHelper.dll</HintPath>
+    </Reference>
+    <None Include="$(JwwHelperDir)Ijwhost.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- JW 図面出力のテンプレート（旧版 RGBJWMain/template100/150/200.jww） -->
+    <None Include="Templates/*.jww" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="NetTopologySuite" Version="2.5.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.15" />
+  </ItemGroup>
+</Project>

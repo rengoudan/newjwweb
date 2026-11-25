@@ -1,0 +1,14 @@
+@using Jw.Domain.Common
+
+<MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="ColorOf(Status)">@L[EnumNames.Of(Status)]</MudChip>
+
+@code {
+    [Parameter, EditorRequired] public ProjectStatus Status { get; set; }
+
+    private static Color ColorOf(ProjectStatus s) => s switch
+    {
+        ProjectStatus.Parsed => Color.Primary,
+        ProjectStatus.Budgeted => Color.Success,
+        _ => Color.Default,
+    };
+}

@@ -17,7 +17,9 @@ namespace JwwHelper {
 		pin_ptr<const WCHAR> str = PtrToStringChars(path);
 		//CW2A astr(str);
 
-		m_pReader->Read(str);
+		// NewJwWeb: MFC exceptions would surface as SEHException; translate to IOException
+		try { m_pReader->Read(str); }
+		catch (CException* e) { TCHAR msg[512] = {}; e->GetErrorMessage(msg, 512); e->Delete(); throw gcnew System::IO::IOException(gcnew String(msg)); }
 		ConvertToManaged();
 		if (completed != nullptr) {
 			completed(this);

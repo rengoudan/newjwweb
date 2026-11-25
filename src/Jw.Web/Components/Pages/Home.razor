@@ -1,56 +1,114 @@
 ﻿@page "/"
 @attribute [Authorize(Policy = Permissions.Workbench.View)]
+@using Jw.Application.Floors
 @inject ICurrentUser CurrentUser
+@inject WorkbenchService Service
+@inject UiRunner Ui
+@inject NavigationManager Nav
 
 <PageTitle>@L["ワークベンチ"]</PageTitle>
 
-<PageHeader Title="@L["ワークベンチ"]" Description="@($"{CurrentUser.DisplayName} {L["さん、お疲れさまです。"]}")" />
+<PageHeader Title="@L["ワークベンチ"]" Description="@($"{CurrentUser.DisplayName} {L["さん、お疲れさまです。"]}")">
+    <Actions>
+        <AuthorizeView Policy="@Permissions.Projects.Edit" Context="_">
+            <MudButton Href="/projects" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Apartment">@L["工事一覧へ"]</MudButton>
+        </AuthorizeView>
+    </Actions>
+</PageHeader>
 
-<MudGrid Spacing="3">
-    <MudItem xs="12" md="8">
-        <MudPaper Class="jw-card pa-5" Elevation="0">
-            <MudText Typo="Typo.h6" Class="mb-3">@L["作業の流れ"]</MudText>
-            <div class="jw-steps">
-                @foreach (var (n, title, text) in Steps)
+@if (_s is null)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <div class="jw-kpi-row">
+        <a class="jw-kpi" href="/projects"><span>@L["工事"]</span><b>@_s.Projects</b><small>@string.Format(L["取り込み途中 {0} 件"], _s.ProjectsInProgress)</small></a>
+        <div class="jw-kpi"><span>@L["取り込み済みの階"]</span><b>@_s.Floors</b><small>&nbsp;</small></div>
+        <div class="jw-kpi @(_s.FloorsNeedCheck > 0 ? "jw-kpi-warn" : null)"><span>@L["要確認の階"]</span><b>@_s.FloorsNeedCheck</b><small>@L["穴なし梁・梁や柱なし"]</small></div>
+        <div class="jw-kpi"><span>@L["CSV 未出力の階"]</span><b>@_s.FloorsCsvPending</b><small>&nbsp;</small></div>
+        <a class="jw-kpi" href="/budgets"><span>@L["予算"]</span><b>@_s.Budgets</b><small>&nbsp;</small></a>
+    </div>
+
+    <MudGrid Spacing="3">
+        <MudItem xs="12" lg="8">
+            <MudPaper Class="jw-card" Elevation="0">
+                <div class="jw-toolbar"><MudText Typo="Typo.h6">@L["対応が必要なもの"]</MudText></div>
+                @if (_s.Todos.Count == 0)
                 {
-                    <div class="jw-step">
-                        <span class="jw-step-no">@n</span>
-                        <div>
-                            <div class="jw-step-title">@L[title]</div>
-                            <div class="jw-step-text">@L[text]</div>
-                        </div>
+                    <div class="jw-empty-inline">@L["対応が必要なものはありません"]</div>
+                }
+                else
+                {
+                    <div class="jw-todo-list">
+                        @foreach (var t in _s.Todos)
+                        {
+                            <a class="jw-todo" href="@t.Href">
+                                <MudIcon Icon="@TodoIcon(t.Kind)" Color="@TodoColor(t.Kind)" Size="Size.Small" />
+                                <span class="jw-todo-kind">@L[TodoName(t.Kind)]</span>
+                                <b>@t.Title</b>
+                                <span class="jw-sub">@t.Detail</span>
+                                <MudSpacer />
+                                <span class="jw-sub">@TimeDisplay.Format(t.At)</span>
+                                <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" />
+                            </a>
+                        }
                     </div>
                 }
-            </div>
-            <MudAlert Severity="Severity.Info" Dense="true" Class="mt-4">
-                @L["工事一覧・図面取込・出力は順次公開します。現在は顧客管理とシステム管理が利用できます。"]
-            </MudAlert>
-        </MudPaper>
-    </MudItem>
-    <MudItem xs="12" md="4">
-        <MudPaper Class="jw-card pa-5" Elevation="0">
-            <MudText Typo="Typo.h6" Class="mb-3">@L["ショートカット"]</MudText>
-            <MudStack Spacing="2">
-                <AuthorizeView Policy="@Permissions.Customers.View" Context="_">
-                    <MudButton Href="/customers" Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Business" FullWidth="true">@L["顧客"]</MudButton>
-                </AuthorizeView>
-                <AuthorizeView Policy="@Permissions.Admin.Users" Context="_">
-                    <MudButton Href="/admin/users" Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.People" FullWidth="true">@L["ユーザー"]</MudButton>
-                </AuthorizeView>
-                <AuthorizeView Policy="@Permissions.Admin.Audit" Context="_">
-                    <MudButton Href="/admin/audit" Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.History" FullWidth="true">@L["操作ログ"]</MudButton>
-                </AuthorizeView>
-            </MudStack>
-        </MudPaper>
-    </MudItem>
-</MudGrid>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" lg="4">
+            <MudPaper Class="jw-card pa-5" Elevation="0">
+                <MudText Typo="Typo.h6" Class="mb-3">@L["作業の流れ"]</MudText>
+                <div class="jw-steps jw-steps-vertical">
+                    @foreach (var (n, title, text) in Steps)
+                    {
+                        <div class="jw-step">
+                            <span class="jw-step-no">@n</span>
+                            <div>
+                                <div class="jw-step-title">@L[title]</div>
+                                <div class="jw-step-text">@L[text]</div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
 
 @code {
+    private WorkbenchSummary? _s;
+
     private static readonly (int, string, string)[] Steps =
     [
-        (1, "顧客の確認", "顧客ごとの解析設定を確認します。"),
+        (1, "顧客の解析設定", "図面の線色・線種に合わせて、顧客ごとに設定します。"),
         (2, "工事の登録", "工事と階数を登録します。"),
-        (3, "図面の取込", "階ごとに .jww を取り込み、梁・柱を解析します。"),
-        (4, "確認と出力", "要確認の梁を直し、JW 図面と梁製造 CSV を出力します。"),
+        (3, "図面の取込", "階ごとに .jww を取り込み、解析結果を確認して保存します。"),
+        (4, "確認と出力", "要確認の梁を確認し、JW 図面と梁製造 CSV を出力します。"),
+        (5, "予算", "解析結果から予算を作成し、見積書を出力します。"),
     ];
+
+    protected override async Task OnInitializedAsync() => await Ui.RunAsync(async () => _s = await Service.GetAsync());
+
+    private static string TodoName(TodoKind k) => k switch
+    {
+        TodoKind.NeedsCheck => "要確認",
+        TodoKind.ImportPending => "未取込",
+        _ => "CSV未出力",
+    };
+
+    private static string TodoIcon(TodoKind k) => k switch
+    {
+        TodoKind.NeedsCheck => Icons.Material.Filled.Warning,
+        TodoKind.ImportPending => Icons.Material.Outlined.UploadFile,
+        _ => Icons.Material.Outlined.Description,
+    };
+
+    private static Color TodoColor(TodoKind k) => k switch
+    {
+        TodoKind.NeedsCheck => Color.Warning,
+        TodoKind.ImportPending => Color.Primary,
+        _ => Color.Secondary,
+    };
 }

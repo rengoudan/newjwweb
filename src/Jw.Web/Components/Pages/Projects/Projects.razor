@@ -1,0 +1,108 @@
+@page "/projects"
+@attribute [Authorize(Policy = Permissions.Projects.View)]
+@using Jw.Application.Projects
+@using Jw.Domain.Common
+@inject ProjectService Service
+@inject IDialogService Dialogs
+@inject UiRunner Ui
+@inject ICurrentUser CurrentUser
+@inject NavigationManager Nav
+
+<PageTitle>@L["工事一覧"]</PageTitle>
+
+<PageHeader Title="@L["工事一覧"]" Description="@L["工事を登録し、階ごとに図面を取り込んで解析します。"]">
+    <Actions>
+        @if (CurrentUser.HasPermission(Permissions.Projects.Edit))
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => EditAsync(null)">@L["工事を追加"]</MudButton>
+        }
+    </Actions>
+</PageHeader>
+
+<MudPaper Class="jw-card" Elevation="0">
+    <div class="jw-toolbar">
+        <MudTextField @bind-Value="_keyword" Placeholder="@L["工事名・現場住所で検索"]" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="300"
+                      OnDebounceIntervalElapsed="LoadAsync" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"
+                      OnClearButtonClick="LoadAsync" Class="jw-search" />
+        <MudSpacer />
+        <MudText Typo="Typo.body2" Color="Color.Secondary">@L["件数"]: @_items.Count</MudText>
+    </div>
+    <MudTable Items="_items" Hover="true" Dense="true" Loading="_loading" Elevation="0" Class="jw-table" RowsPerPage="50"
+              HorizontalScrollbar="true" OnRowClick="(TableRowClickEventArgs<ProjectListItem> e) => Open(e.Item!)" RowClass="jw-clickable">
+        <HeaderContent>
+            <MudTh><MudTableSortLabel SortBy="new Func<ProjectListItem, object>(x => x.Name)">@L["工事名"]</MudTableSortLabel></MudTh>
+            <MudTh>@L["顧客"]</MudTh>
+            <MudTh>@L["状態"]</MudTh>
+            <MudTh Style="text-align:right">@L["階（解析/計画）"]</MudTh>
+            <MudTh Style="text-align:right">@L["梁数"]</MudTh>
+            <MudTh Style="text-align:right">@L["K柱"]</MudTh>
+            <MudTh Style="text-align:right">@L["単柱"]</MudTh>
+            <MudTh Style="text-align:right">B / BG</MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<ProjectListItem, object>(x => x.ModifiedAt ?? x.CreatedAt)">@L["最終更新"]</MudTableSortLabel></MudTh>
+            <MudTh Style="width:1%"></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>
+                <b>@context.Name</b>
+                <div class="jw-sub">@context.SiteAddress</div>
+            </MudTd>
+            <MudTd>@context.CustomerName</MudTd>
+            <MudTd><ProjectStatusChip Status="context.Status" /></MudTd>
+            <MudTd Style="text-align:right">
+                <span class="@(context.ParsedQuantity >= context.FloorQuantity ? "jw-text-success" : null)">@context.ParsedQuantity / @context.FloorQuantity</span>
+            </MudTd>
+            <MudTd Style="text-align:right">@context.BeamCount</MudTd>
+            <MudTd Style="text-align:right">@context.KPillarCount</MudTd>
+            <MudTd Style="text-align:right">@context.SinglePillarCount</MudTd>
+            <MudTd Style="text-align:right">@context.BCount / @context.BGCount</MudTd>
+            <MudTd>
+                <div>@TimeDisplay.Format(context.ModifiedAt ?? context.CreatedAt)</div>
+                <div class="jw-sub">@(context.ModifiedByName ?? context.CreatedByName)</div>
+            </MudTd>
+            <MudTd Class="jw-row-actions" @onclick:stopPropagation="true">
+                @if (CurrentUser.HasPermission(Permissions.Projects.Edit))
+                {
+                    <MudTooltip Text="@L["編集"]"><MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" OnClick="() => EditAsync(context.Id)" /></MudTooltip>
+                }
+                @if (CurrentUser.HasPermission(Permissions.Projects.Delete))
+                {
+                    <MudTooltip Text="@L["削除"]"><MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteAsync(context)" /></MudTooltip>
+                }
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <div class="jw-empty-inline">@L["工事が登録されていません。「工事を追加」から登録してください。"]</div>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager HideRowsPerPage="true" />
+        </PagerContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private IReadOnlyList<ProjectListItem> _items = [];
+    private string? _keyword;
+    private bool _loading = true;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        await Ui.RunAsync(async () => _items = await Service.ListAsync(_keyword));
+        _loading = false;
+    }
+
+    private void Open(ProjectListItem item) => Nav.NavigateTo($"/projects/{item.Id}");
+
+    private async Task EditAsync(Guid? id)
+    {
+        if (await ProjectDialog.ShowAsync(Dialogs, L, id)) await LoadAsync();
+    }
+
+    private async Task DeleteAsync(ProjectListItem item)
+    {
+        if (await ProjectDialog.ConfirmDeleteAsync(Dialogs, L, Ui, Service, item)) await LoadAsync();
+    }
+}

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- 旧版数据库（SQLite jwdata.db / SQL Server）→ 新库的一次性迁移工具。不引用旧版程序集，直接读表。 -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.15" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.15" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Jw.Infrastructure\Jw.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>
